@@ -1,5 +1,5 @@
 // ============================================================
-// Riyadh Tycoon — Main Board Scene
+// RiyadhTowers — Premium Main Board Scene
 // ============================================================
 
 var BoardScene = new Phaser.Class({
@@ -80,7 +80,6 @@ var BoardScene = new Phaser.Class({
     var sh = this.spaceHeight;
 
     // Bottom row (right to left): spaces 0-10
-    // Space 0 = GO (bottom-right corner)
     positions[0] = { x: bx + bs - cs / 2, y: by + bs - cs / 2, w: cs, h: cs, side: 'corner' };
     for (var i = 1; i <= 9; i++) {
       positions[i] = {
@@ -124,11 +123,11 @@ var BoardScene = new Phaser.Class({
   },
 
   // -------------------------------------------------------
-  // Board Drawing
+  // Premium Board Drawing
   // -------------------------------------------------------
   drawBackgroundPattern: function() {
     var g = this.add.graphics();
-    g.setAlpha(0.03);
+    g.setAlpha(0.025);
     var size = 60;
     for (var x = 0; x < GAME_WIDTH; x += size) {
       for (var y = 0; y < GAME_HEIGHT; y += size) {
@@ -136,12 +135,24 @@ var BoardScene = new Phaser.Class({
         var cy = y + size / 2;
         var r = size * 0.3;
         g.lineStyle(1, 0xC8A951, 1);
+        // 8-pointed star pattern
         for (var i = 0; i < 8; i++) {
           var a1 = (i / 8) * Math.PI * 2;
           var a2 = ((i + 3) / 8) * Math.PI * 2;
           g.lineBetween(
             cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
             cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
+          );
+        }
+        // Inner diamond
+        g.lineStyle(0.5, 0xC8A951, 0.5);
+        var ir = r * 0.4;
+        for (var j = 0; j < 4; j++) {
+          var ja1 = (j / 4) * Math.PI * 2;
+          var ja2 = ((j + 1) / 4) * Math.PI * 2;
+          g.lineBetween(
+            cx + Math.cos(ja1) * ir, cy + Math.sin(ja1) * ir,
+            cx + Math.cos(ja2) * ir, cy + Math.sin(ja2) * ir
           );
         }
       }
@@ -158,17 +169,31 @@ var BoardScene = new Phaser.Class({
     var sw = this.spaceWidth;
     var sh = this.spaceHeight;
 
-    // Board background
-    g.fillStyle(0x0F1E38, 1);
-    g.fillRoundedRect(bx, by, bs, bs, 8);
+    // Outer drop shadow
+    g.fillStyle(0x000000, 0.4);
+    g.fillRoundedRect(bx + 4, by + 4, bs, bs, 10);
+    g.fillStyle(0x000000, 0.2);
+    g.fillRoundedRect(bx + 8, by + 8, bs, bs, 10);
 
-    // Board border (gold)
-    g.lineStyle(3, 0xC8A951, 0.8);
+    // Board background - layered for depth
+    g.fillStyle(0x0B1A2D, 1);
+    g.fillRoundedRect(bx, by, bs, bs, 8);
+    g.fillStyle(0x0F1E38, 0.7);
+    g.fillRoundedRect(bx + 2, by + 2, bs - 4, bs - 4, 7);
+
+    // Outer gold border (thick)
+    g.lineStyle(3, 0xC8A951, 0.9);
     g.strokeRoundedRect(bx, by, bs, bs, 8);
 
-    // Inner border
-    g.lineStyle(1, 0x2A3F6B, 0.5);
+    // Inner gold border (thin)
+    g.lineStyle(1, 0xC8A951, 0.3);
+    g.strokeRoundedRect(bx + 4, by + 4, bs - 8, bs - 8, 6);
+
+    // Inner playing area border
+    g.lineStyle(2, 0x1E3355, 0.6);
     g.strokeRect(bx + sh, by + sh, bs - sh * 2, bs - sh * 2);
+    g.lineStyle(1, 0xC8A951, 0.15);
+    g.strokeRect(bx + sh + 1, by + sh + 1, bs - sh * 2 - 2, bs - sh * 2 - 2);
 
     // Draw all spaces
     for (var i = 0; i < 40; i++) {
@@ -180,15 +205,17 @@ var BoardScene = new Phaser.Class({
     this.boardContainer.add(shimmer);
     this.tweens.add({
       targets: shimmer,
-      alpha: { from: 0.3, to: 0.8 },
-      duration: 2000,
+      alpha: { from: 0.2, to: 0.7 },
+      duration: 2500,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
       onUpdate: function() {
         shimmer.clear();
-        shimmer.lineStyle(2, 0xC8A951, shimmer.alpha);
+        shimmer.lineStyle(2, 0xFFD700, shimmer.alpha);
         shimmer.strokeRoundedRect(bx - 1, by - 1, bs + 2, bs + 2, 9);
+        shimmer.lineStyle(1, 0xC8A951, shimmer.alpha * 0.3);
+        shimmer.strokeRoundedRect(bx - 3, by - 3, bs + 6, bs + 6, 11);
       }
     });
   },
@@ -201,98 +228,137 @@ var BoardScene = new Phaser.Class({
     var pw = pos.w;
     var ph = pos.h;
 
-    // Draw space background
-    g.fillStyle(0x0F1E38, 1);
-
     if (pos.side === 'corner') {
-      g.fillStyle(0x0F1E38, 1);
-      g.fillRect(x - pw/2, y - ph/2, pw, ph);
-      g.lineStyle(1, 0x2A3F6B, 0.5);
-      g.strokeRect(x - pw/2, y - ph/2, pw, ph);
+      // Corner background with subtle gradient feel
+      g.fillStyle(0x0A1525, 1);
+      g.fillRect(x - pw / 2, y - ph / 2, pw, ph);
+      g.fillStyle(0x0F1E38, 0.5);
+      g.fillRect(x - pw / 2 + 2, y - ph / 2 + 2, pw - 4, ph - 4);
+      g.lineStyle(1, 0x1E3355, 0.7);
+      g.strokeRect(x - pw / 2, y - ph / 2, pw, ph);
+      // Corner inner highlight
+      g.lineStyle(1, 0xC8A951, 0.1);
+      g.strokeRect(x - pw / 2 + 1, y - ph / 2 + 1, pw - 2, ph - 2);
     } else {
-      g.lineStyle(1, 0x2A3F6B, 0.3);
-      if (pos.side === 'bottom' || pos.side === 'top') {
-        g.strokeRect(x - pw/2, y - ph/2, pw, ph);
-      } else {
-        g.strokeRect(x - pw/2, y - ph/2, pw, ph);
-      }
+      // Regular space separator lines
+      g.lineStyle(1, 0x1E3355, 0.4);
+      g.strokeRect(x - pw / 2, y - ph / 2, pw, ph);
     }
 
-    // Color bar for properties
+    // Color bar for properties - enhanced with highlight strip
     if (space.type === 'property' && space.colorInt) {
-      var barH = 10;
+      var barH = 12;
+      var highlightH = 3;
       if (pos.side === 'bottom') {
         g.fillStyle(space.colorInt, 1);
-        g.fillRect(x - pw/2 + 1, y - ph/2 + 1, pw - 2, barH);
+        g.fillRect(x - pw / 2 + 1, y - ph / 2 + 1, pw - 2, barH);
+        // Highlight strip on top of color bar
+        g.fillStyle(0xFFFFFF, 0.2);
+        g.fillRect(x - pw / 2 + 1, y - ph / 2 + 1, pw - 2, highlightH);
       } else if (pos.side === 'top') {
         g.fillStyle(space.colorInt, 1);
-        g.fillRect(x - pw/2 + 1, y + ph/2 - barH - 1, pw - 2, barH);
+        g.fillRect(x - pw / 2 + 1, y + ph / 2 - barH - 1, pw - 2, barH);
+        g.fillStyle(0xFFFFFF, 0.2);
+        g.fillRect(x - pw / 2 + 1, y + ph / 2 - barH - 1, pw - 2, highlightH);
       } else if (pos.side === 'left') {
         g.fillStyle(space.colorInt, 1);
-        g.fillRect(x + pw/2 - barH - 1, y - ph/2 + 1, barH, ph - 2);
+        g.fillRect(x + pw / 2 - barH - 1, y - ph / 2 + 1, barH, ph - 2);
+        g.fillStyle(0xFFFFFF, 0.2);
+        g.fillRect(x + pw / 2 - highlightH - 1, y - ph / 2 + 1, highlightH, ph - 2);
       } else if (pos.side === 'right') {
         g.fillStyle(space.colorInt, 1);
-        g.fillRect(x - pw/2 + 1, y - ph/2 + 1, barH, ph - 2);
+        g.fillRect(x - pw / 2 + 1, y - ph / 2 + 1, barH, ph - 2);
+        g.fillStyle(0xFFFFFF, 0.2);
+        g.fillRect(x - pw / 2 + 1, y - ph / 2 + 1, highlightH, ph - 2);
       }
     }
 
     // Text labels
-    var fontSize, textX, textY, textAngle = 0;
-
     if (pos.side === 'corner') {
-      this.drawCornerText(index, x, y, pw, ph);
+      this.drawCornerContent(g, index, x, y, pw, ph);
     } else {
       this.drawSpaceText(index, x, y, pos.side);
     }
   },
 
-  drawCornerText: function(index, x, y, pw, ph) {
+  drawCornerContent: function(g, index, x, y, pw, ph) {
     var space = BOARD[index];
-    var label, sublabel;
 
     switch (space.type) {
       case 'go':
-        label = this.add.text(x, y - 10, 'إنطلق!', {
-          fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontStyle: 'bold', color: COLORS.success,
+        // Green arrow icon
+        g.fillStyle(0x27AE60, 0.3);
+        g.fillCircle(x, y - 18, 14);
+        g.lineStyle(2, 0x27AE60, 0.7);
+        g.strokeCircle(x, y - 18, 14);
+
+        var label = this.add.text(x, y - 18, '>', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '16px', fontStyle: 'bold', color: COLORS.success,
         }).setOrigin(0.5);
-        sublabel = this.add.text(x, y + 12, 'GO →', {
-          fontFamily: '"Fredoka One", sans-serif', fontSize: '12px', color: COLORS.success, alpha: 0.7,
+        var arLabel = this.add.text(x, y + 4, 'GO', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '13px', fontStyle: 'bold', color: COLORS.success,
         }).setOrigin(0.5);
-        var arrow = this.add.text(x, y + 30, '200 SAR', {
-          fontFamily: '"Fredoka One", sans-serif', fontSize: '11px', color: COLORS.desertGold,
+        var amount = this.add.text(x, y + 22, '200 SAR', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '10px', color: COLORS.desertGold,
         }).setOrigin(0.5);
-        this.boardContainer.add([label, sublabel, arrow]);
+        this.boardContainer.add([label, arLabel, amount]);
         break;
+
       case 'jail':
-        label = this.add.text(x, y - 10, 'السجن', {
-          fontFamily: 'Tajawal, sans-serif', fontSize: '16px', fontStyle: 'bold', color: COLORS.danger,
+        // Jail bars icon
+        g.lineStyle(2, 0xE74C3C, 0.5);
+        for (var b = -8; b <= 8; b += 8) {
+          g.lineBetween(x + b, y - 26, x + b, y - 6);
+        }
+        g.lineStyle(1, 0xE74C3C, 0.3);
+        g.lineBetween(x - 12, y - 16, x + 12, y - 16);
+
+        var jailAr = this.add.text(x, y + 6, 'JAIL', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '14px', fontStyle: 'bold', color: COLORS.danger,
         }).setOrigin(0.5);
-        sublabel = this.add.text(x, y + 12, 'JAIL', {
-          fontFamily: '"Fredoka One", sans-serif', fontSize: '12px', color: COLORS.danger, alpha: 0.7,
+        var jailEn = this.add.text(x, y + 24, 'Visit / Stay', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '9px', color: COLORS.textSecondary, alpha: 0.6,
         }).setOrigin(0.5);
-        this.boardContainer.add([label, sublabel]);
+        this.boardContainer.add([jailAr, jailEn]);
         break;
+
       case 'free':
-        label = this.add.text(x, y - 12, 'استراحة', {
-          fontFamily: 'Tajawal, sans-serif', fontSize: '14px', fontStyle: 'bold', color: COLORS.desertGold,
+        // Parking P icon
+        g.fillStyle(0xC8A951, 0.15);
+        g.fillCircle(x, y - 14, 16);
+        g.lineStyle(2, 0xC8A951, 0.5);
+        g.strokeCircle(x, y - 14, 16);
+
+        var pLabel = this.add.text(x, y - 15, 'P', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '18px', fontStyle: 'bold', color: COLORS.desertGold,
         }).setOrigin(0.5);
-        sublabel = this.add.text(x, y + 8, 'FREE', {
-          fontFamily: '"Fredoka One", sans-serif', fontSize: '11px', color: COLORS.desertGold, alpha: 0.7,
+        var freeLabel = this.add.text(x, y + 10, 'FREE', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '12px', color: COLORS.desertGold, alpha: 0.8,
         }).setOrigin(0.5);
-        var parkText = this.add.text(x, y + 25, '🅿️', { fontSize: '18px' }).setOrigin(0.5);
-        this.boardContainer.add([label, sublabel, parkText]);
+        var parkLabel = this.add.text(x, y + 26, 'PARKING', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '8px', color: COLORS.textSecondary, alpha: 0.5,
+        }).setOrigin(0.5);
+        this.boardContainer.add([pLabel, freeLabel, parkLabel]);
         break;
+
       case 'gotojail':
-        label = this.add.text(x, y - 12, 'إذهب', {
-          fontFamily: 'Tajawal, sans-serif', fontSize: '14px', fontStyle: 'bold', color: COLORS.danger,
+        // Arrow pointing to bars
+        g.lineStyle(2, 0xE74C3C, 0.6);
+        g.lineBetween(x - 12, y - 14, x + 4, y - 14);
+        g.lineBetween(x + 1, y - 20, x + 6, y - 14);
+        g.lineBetween(x + 1, y - 8, x + 6, y - 14);
+        // Mini bars
+        for (var mb = 8; mb <= 16; mb += 4) {
+          g.lineBetween(x + mb, y - 22, x + mb, y - 6);
+        }
+
+        var goAr = this.add.text(x, y + 4, 'GO TO', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '11px', fontStyle: 'bold', color: COLORS.danger,
         }).setOrigin(0.5);
-        sublabel = this.add.text(x, y + 6, 'للسجن', {
-          fontFamily: 'Tajawal, sans-serif', fontSize: '14px', fontStyle: 'bold', color: COLORS.danger,
+        var goJailLabel = this.add.text(x, y + 18, 'JAIL', {
+          fontFamily: '"Fredoka One", sans-serif', fontSize: '14px', fontStyle: 'bold', color: COLORS.danger,
         }).setOrigin(0.5);
-        var goText = this.add.text(x, y + 26, 'GO TO JAIL', {
-          fontFamily: '"Fredoka One", sans-serif', fontSize: '9px', color: COLORS.danger, alpha: 0.7,
-        }).setOrigin(0.5);
-        this.boardContainer.add([label, sublabel, goText]);
+        this.boardContainer.add([goAr, goJailLabel]);
         break;
     }
   },
@@ -303,7 +369,6 @@ var BoardScene = new Phaser.Class({
     var isVertical = (side === 'left' || side === 'right');
     var maxW = isVertical ? this.spaceHeight - 6 : this.spaceWidth - 4;
 
-    // Short label
     var shortName = space.nameEn;
     if (shortName && shortName.length > 10) {
       shortName = shortName.substring(0, 9) + '.';
@@ -320,7 +385,7 @@ var BoardScene = new Phaser.Class({
     if (space.type === 'property' || space.type === 'station' || space.type === 'utility') {
       var yOff = (side === 'bottom') ? 8 : (side === 'top') ? -3 : 0;
       nameText = this.add.text(x, y + yOff, shortName, textStyle).setOrigin(0.5);
-      if (isVertical) nameText.setRotation(side === 'left' ? -Math.PI/2 : Math.PI/2);
+      if (isVertical) nameText.setRotation(side === 'left' ? -Math.PI / 2 : Math.PI / 2);
 
       if (space.price) {
         var priceStyle = {
@@ -331,7 +396,7 @@ var BoardScene = new Phaser.Class({
         var pOff = (side === 'bottom') ? 22 : (side === 'top') ? -17 : 0;
         priceText = this.add.text(x, y + yOff + (isVertical ? 0 : pOff), space.price + '', priceStyle).setOrigin(0.5);
         if (isVertical) {
-          priceText.setRotation(side === 'left' ? -Math.PI/2 : Math.PI/2);
+          priceText.setRotation(side === 'left' ? -Math.PI / 2 : Math.PI / 2);
           priceText.setPosition(x + (side === 'left' ? -15 : 15), y);
         }
         this.boardContainer.add(priceText);
@@ -340,17 +405,22 @@ var BoardScene = new Phaser.Class({
       nameText = this.add.text(x, y, '?', {
         fontFamily: '"Fredoka One", sans-serif', fontSize: '18px', color: COLORS.accent,
       }).setOrigin(0.5);
-      if (isVertical) nameText.setRotation(side === 'left' ? -Math.PI/2 : Math.PI/2);
+      if (isVertical) nameText.setRotation(side === 'left' ? -Math.PI / 2 : Math.PI / 2);
     } else if (space.type === 'community') {
-      nameText = this.add.text(x, y, '📦', { fontSize: '16px' }).setOrigin(0.5);
+      nameText = this.add.text(x, y, 'CC', {
+        fontFamily: '"Fredoka One", sans-serif', fontSize: '12px', color: COLORS.warmSand, alpha: 0.7,
+      }).setOrigin(0.5);
+      if (isVertical) nameText.setRotation(side === 'left' ? -Math.PI / 2 : Math.PI / 2);
     } else if (space.type === 'tax') {
-      nameText = this.add.text(x, y - 5, '💰', { fontSize: '14px' }).setOrigin(0.5);
-      var taxAmount = this.add.text(x, y + 12, space.amount + '', {
-        fontFamily: '"Fredoka One", sans-serif', fontSize: '8px', color: COLORS.danger,
+      nameText = this.add.text(x, y - 5, 'TAX', {
+        fontFamily: '"Fredoka One", sans-serif', fontSize: '10px', color: COLORS.danger,
+      }).setOrigin(0.5);
+      var taxAmount = this.add.text(x, y + 10, space.amount + '', {
+        fontFamily: '"Fredoka One", sans-serif', fontSize: '8px', color: COLORS.danger, alpha: 0.8,
       }).setOrigin(0.5);
       if (isVertical) {
-        nameText.setRotation(side === 'left' ? -Math.PI/2 : Math.PI/2);
-        taxAmount.setRotation(side === 'left' ? -Math.PI/2 : Math.PI/2);
+        nameText.setRotation(side === 'left' ? -Math.PI / 2 : Math.PI / 2);
+        taxAmount.setRotation(side === 'left' ? -Math.PI / 2 : Math.PI / 2);
       }
       this.boardContainer.add(taxAmount);
     }
@@ -364,65 +434,160 @@ var BoardScene = new Phaser.Class({
     var centerContainer = this.add.container(0, 0);
     this.boardContainer.add(centerContainer);
 
-    // Game logo in center
-    var title = this.add.text(cx, cy - 60, 'ريادة الرياض', {
+    // Decorative border frame around center
+    var frame = this.add.graphics();
+    frame.lineStyle(1, 0xC8A951, 0.2);
+    frame.strokeRect(cx - 140, cy - 100, 280, 220);
+    frame.lineStyle(1, 0xC8A951, 0.1);
+    frame.strokeRect(cx - 143, cy - 103, 286, 226);
+    // Corner diamond ornaments
+    var corners = [
+      { x: cx - 140, y: cy - 100 },
+      { x: cx + 140, y: cy - 100 },
+      { x: cx - 140, y: cy + 120 },
+      { x: cx + 140, y: cy + 120 }
+    ];
+    for (var ci = 0; ci < corners.length; ci++) {
+      frame.fillStyle(0xC8A951, 0.25);
+      frame.fillCircle(corners[ci].x, corners[ci].y, 3);
+    }
+    centerContainer.add(frame);
+
+    // Game title - Arabic
+    var title = this.add.text(cx, cy - 65, 'أبراج الرياض', {
       fontFamily: 'Tajawal, sans-serif',
-      fontSize: '32px',
+      fontSize: '30px',
       fontStyle: '800',
       color: COLORS.desertGold,
-      stroke: '#0A1628',
+      stroke: '#060E1A',
       strokeThickness: 3,
     }).setOrigin(0.5);
     centerContainer.add(title);
 
-    var subtitle = this.add.text(cx, cy - 25, 'RIYADH TYCOON', {
+    // Pulsing glow on title
+    this.tweens.add({
+      targets: title,
+      alpha: { from: 0.8, to: 1 },
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // English subtitle
+    var subtitle = this.add.text(cx, cy - 32, 'RIYADH TOWERS', {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '16px',
+      fontSize: '14px',
       color: COLORS.textSecondary,
     }).setOrigin(0.5);
     centerContainer.add(subtitle);
 
-    // Decorative line
-    var line = this.add.graphics();
-    line.lineStyle(1, 0xC8A951, 0.4);
-    line.lineBetween(cx - 80, cy - 5, cx + 80, cy - 5);
-    centerContainer.add(line);
+    // Decorative gold line with diamonds
+    var dline = this.add.graphics();
+    dline.lineStyle(1, 0xC8A951, 0.5);
+    dline.lineBetween(cx - 90, cy - 12, cx + 90, cy - 12);
+    dline.fillStyle(0xC8A951, 0.5);
+    dline.fillCircle(cx - 90, cy - 12, 2);
+    dline.fillCircle(cx, cy - 12, 3);
+    dline.fillCircle(cx + 90, cy - 12, 2);
+    centerContainer.add(dline);
 
-    // Card deck visuals
-    var chanceLabel = this.add.text(cx - 60, cy + 20, '? فرصة', {
-      fontFamily: 'Tajawal, sans-serif', fontSize: '14px', color: COLORS.accent,
+    // Card deck areas
+    var chanceCard = this.add.graphics();
+    chanceCard.fillStyle(0x2A1A44, 0.6);
+    chanceCard.fillRoundedRect(cx - 105, cy + 2, 80, 45, 5);
+    chanceCard.lineStyle(1, 0xE8B931, 0.4);
+    chanceCard.strokeRoundedRect(cx - 105, cy + 2, 80, 45, 5);
+    centerContainer.add(chanceCard);
+
+    var chanceLabel = this.add.text(cx - 65, cy + 14, '?', {
+      fontFamily: '"Fredoka One", sans-serif', fontSize: '16px', color: COLORS.accent,
     }).setOrigin(0.5);
-    centerContainer.add(chanceLabel);
-
-    var communityLabel = this.add.text(cx + 60, cy + 20, '📦 مجتمع', {
-      fontFamily: 'Tajawal, sans-serif', fontSize: '14px', color: COLORS.warmSand,
+    var chanceSub = this.add.text(cx - 65, cy + 34, 'Chance', {
+      fontFamily: '"Fredoka One", sans-serif', fontSize: '8px', color: COLORS.accent, alpha: 0.6,
     }).setOrigin(0.5);
-    centerContainer.add(communityLabel);
+    centerContainer.add([chanceLabel, chanceSub]);
 
-    // Mini skyline silhouette
+    var commCard = this.add.graphics();
+    commCard.fillStyle(0x1A3744, 0.6);
+    commCard.fillRoundedRect(cx + 25, cy + 2, 80, 45, 5);
+    commCard.lineStyle(1, 0x87CEEB, 0.4);
+    commCard.strokeRoundedRect(cx + 25, cy + 2, 80, 45, 5);
+    centerContainer.add(commCard);
+
+    var commLabel = this.add.text(cx + 65, cy + 14, 'CC', {
+      fontFamily: '"Fredoka One", sans-serif', fontSize: '12px', color: COLORS.warmSand,
+    }).setOrigin(0.5);
+    var commSub = this.add.text(cx + 65, cy + 34, 'Community', {
+      fontFamily: '"Fredoka One", sans-serif', fontSize: '8px', color: COLORS.warmSand, alpha: 0.6,
+    }).setOrigin(0.5);
+    centerContainer.add([commLabel, commSub]);
+
+    // Enhanced skyline silhouette
     var skyline = this.add.graphics();
-    skyline.fillStyle(0x1A2744, 0.5);
-    // Kingdom Tower
-    skyline.fillRect(cx - 5, cy + 50, 10, 50);
-    skyline.fillCircle(cx, cy + 48, 4);
-    // Al Faisaliah
+    var skyBase = cy + 105;
+
+    // Ground line
+    skyline.fillStyle(0x1A2744, 0.4);
+    skyline.fillRect(cx - 120, skyBase, 240, 3);
+
+    // Background buildings
+    skyline.fillStyle(0x0F1E38, 0.6);
+    var bgBuildings = [
+      { x: -100, w: 14, h: 25 }, { x: -75, w: 12, h: 35 },
+      { x: -55, w: 10, h: 20 }, { x: -35, w: 16, h: 30 },
+      { x: 40, w: 12, h: 28 }, { x: 60, w: 14, h: 22 },
+      { x: 80, w: 10, h: 32 }, { x: 100, w: 12, h: 18 }
+    ];
+    for (var bi = 0; bi < bgBuildings.length; bi++) {
+      var bb = bgBuildings[bi];
+      skyline.fillRect(cx + bb.x - bb.w / 2, skyBase - bb.h, bb.w, bb.h);
+    }
+
+    // Kingdom Tower (arch shape)
+    skyline.fillStyle(0x1A2744, 0.7);
+    skyline.fillRect(cx - 6, skyBase - 55, 12, 55);
+    // Arch cutout effect (lighter fill)
+    skyline.fillStyle(0x0B1A2D, 0.8);
+    skyline.fillCircle(cx, skyBase - 50, 4);
+
+    // Al Faisaliah (tapering tower)
+    skyline.fillStyle(0x1A2744, 0.7);
     skyline.beginPath();
-    skyline.moveTo(cx + 30, cy + 100);
-    skyline.lineTo(cx + 33, cy + 55);
-    skyline.lineTo(cx + 37, cy + 55);
-    skyline.lineTo(cx + 40, cy + 100);
+    skyline.moveTo(cx + 28, skyBase);
+    skyline.lineTo(cx + 31, skyBase - 48);
+    skyline.lineTo(cx + 35, skyBase - 48);
+    skyline.lineTo(cx + 38, skyBase);
     skyline.closePath();
     skyline.fillPath();
-    // Small buildings
-    for (var i = -80; i < 80; i += 15) {
-      var bh = 10 + Math.random() * 25;
-      skyline.fillRect(cx + i, cy + 100 - bh, 10, bh);
-    }
+    // Golden sphere
+    skyline.fillStyle(0xC8A951, 0.3);
+    skyline.fillCircle(cx + 33, skyBase - 40, 3);
+
+    // Mosque dome with minarets
+    skyline.fillStyle(0x1A2744, 0.6);
+    // Dome
+    skyline.beginPath();
+    skyline.moveTo(cx - 30, skyBase - 15);
+    skyline.lineTo(cx - 28, skyBase - 28);
+    skyline.lineTo(cx - 22, skyBase - 33);
+    skyline.lineTo(cx - 16, skyBase - 28);
+    skyline.lineTo(cx - 14, skyBase - 15);
+    skyline.closePath();
+    skyline.fillPath();
+    // Minarets
+    skyline.fillRect(cx - 34, skyBase - 35, 3, 35);
+    skyline.fillRect(cx - 13, skyBase - 35, 3, 35);
+    // Crescent finials
+    skyline.fillStyle(0xC8A951, 0.2);
+    skyline.fillCircle(cx - 33, skyBase - 37, 2);
+    skyline.fillCircle(cx - 11, skyBase - 37, 2);
+
     centerContainer.add(skyline);
   },
 
   // -------------------------------------------------------
-  // Player Token Sprites
+  // Premium Player Token Sprites
   // -------------------------------------------------------
   createTokenSprites: function() {
     for (var i = 0; i < GameState.players.length; i++) {
@@ -438,11 +603,21 @@ var BoardScene = new Phaser.Class({
       var container = this.add.container(pos.x + offset.x, pos.y + offset.y);
       container.setDepth(50 + i);
 
-      // Token circle
+      // Drop shadow
+      var shadow = this.add.graphics();
+      shadow.fillStyle(0x000000, 0.3);
+      shadow.fillEllipse(1, 3, 26, 18);
+      container.add(shadow);
+
+      // Token body
       var circle = this.add.graphics();
       circle.fillStyle(player.color, 1);
       circle.fillCircle(0, 0, 14);
-      circle.lineStyle(2, 0xFFFFFF, 0.8);
+      // Top bevel highlight
+      circle.fillStyle(0xFFFFFF, 0.15);
+      circle.fillCircle(0, -3, 10);
+      // Border
+      circle.lineStyle(2, 0xFFFFFF, 0.7);
       circle.strokeCircle(0, 0, 14);
       container.add(circle);
 
@@ -452,9 +627,17 @@ var BoardScene = new Phaser.Class({
       }).setOrigin(0.5);
       container.add(emoji);
 
+      // Active glow ring (hidden by default)
+      var glowRing = this.add.graphics();
+      glowRing.lineStyle(3, player.color, 0.6);
+      glowRing.strokeCircle(0, 0, 18);
+      glowRing.setVisible(false);
+      container.add(glowRing);
+
       this.tokenSprites.push({
         container: container,
         playerIndex: i,
+        glowRing: glowRing,
       });
     }
   },
@@ -474,7 +657,6 @@ var BoardScene = new Phaser.Class({
     var token = this.tokenSprites[playerIndex];
     var steps = [];
 
-    // Calculate path
     var current = fromPos;
     while (current !== toPos) {
       current = (current + 1) % 40;
@@ -503,7 +685,7 @@ var BoardScene = new Phaser.Class({
       self.tweens.add({
         targets: token.container,
         x: tPos.x + offset.x,
-        y: tPos.y + offset.y - 8, // hop up
+        y: tPos.y + offset.y - 8,
         duration: 80,
         ease: 'Quad.easeOut',
         onComplete: function() {
@@ -532,14 +714,13 @@ var BoardScene = new Phaser.Class({
   },
 
   // -------------------------------------------------------
-  // HUD
+  // Premium HUD
   // -------------------------------------------------------
   createHUD: function() {
     var startX = this.boardX + this.boardSize + 30;
     var w = GAME_WIDTH - startX - 20;
     var y = 20;
 
-    // Player panels
     this.playerPanels = [];
     for (var i = 0; i < GameState.players.length; i++) {
       var panel = this.createPlayerPanel(startX, y + i * 135, w, 125, i);
@@ -562,7 +743,7 @@ var BoardScene = new Phaser.Class({
       align: 'center',
     }).setOrigin(0.5);
 
-    // Action hints at bottom
+    // Action hints
     this.actionHintText = this.add.text(startX + w / 2, GAME_HEIGHT - 80, '', {
       fontFamily: 'Tajawal, sans-serif',
       fontSize: '20px',
@@ -578,11 +759,11 @@ var BoardScene = new Phaser.Class({
     }).setOrigin(0.5);
 
     // Color key hints
-    this.colorKeyHints = this.add.text(startX + w / 2, GAME_HEIGHT - 25, '🔴Buy  🟢Trade  🟡Build  🔵Mortgage', {
+    this.colorKeyHints = this.add.text(startX + w / 2, GAME_HEIGHT - 25, 'RED:Buy  GRN:Trade  YLW:Build  BLU:Mortgage', {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '12px',
+      fontSize: '11px',
       color: COLORS.textSecondary,
-      alpha: 0.4,
+      alpha: 0.35,
     }).setOrigin(0.5);
   },
 
@@ -596,22 +777,38 @@ var BoardScene = new Phaser.Class({
     var container = this.add.container(x, y);
     this.hudContainer.add(container);
 
-    // Panel background
+    // Panel shadow
+    var panelShadow = this.add.graphics();
+    panelShadow.fillStyle(0x000000, 0.2);
+    panelShadow.fillRoundedRect(3, 3, w, h, 10);
+    container.add(panelShadow);
+
+    // Panel background - glass-morphism layers
     var bg = this.add.graphics();
-    bg.fillStyle(0x1A2744, 0.9);
+    bg.fillStyle(0x0C1729, 0.95);
     bg.fillRoundedRect(0, 0, w, h, 10);
+    bg.fillStyle(0x162340, 0.3);
+    bg.fillRoundedRect(0, 0, w, h / 2, { tl: 10, tr: 10, bl: 0, br: 0 });
     container.add(bg);
+
+    // Player color accent bar on left edge
+    var accentBar = this.add.graphics();
+    accentBar.fillStyle(player.color, 0.9);
+    accentBar.fillRoundedRect(0, 4, 4, h - 8, 2);
+    container.add(accentBar);
 
     // Border (player color)
     var border = this.add.graphics();
-    border.lineStyle(2, player.color, 0.6);
+    border.lineStyle(1, player.color, 0.3);
     border.strokeRoundedRect(0, 0, w, h, 10);
     container.add(border);
 
     // Active glow (hidden by default)
     var glow = this.add.graphics();
-    glow.lineStyle(3, player.color, 1);
+    glow.lineStyle(2, player.color, 0.8);
     glow.strokeRoundedRect(-2, -2, w + 4, h + 4, 12);
+    glow.fillStyle(player.color, 0.04);
+    glow.fillRoundedRect(-2, -2, w + 4, h + 4, 12);
     glow.setVisible(false);
     container.add(glow);
 
@@ -628,8 +825,8 @@ var BoardScene = new Phaser.Class({
     });
     container.add(nameText);
 
-    // Money
-    var moneyText = this.add.text(50, 38, '💰 ' + player.money + ' SAR', {
+    // Money with icon
+    var moneyText = this.add.text(50, 38, 'SAR ' + player.money, {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '18px',
       color: COLORS.desertGold,
@@ -637,7 +834,7 @@ var BoardScene = new Phaser.Class({
     container.add(moneyText);
 
     // Properties count
-    var propsText = this.add.text(15, 68, '🏠 0 properties', {
+    var propsText = this.add.text(15, 68, '0 properties', {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '14px',
       color: COLORS.textSecondary,
@@ -675,23 +872,26 @@ var BoardScene = new Phaser.Class({
       var panel = this.playerPanels[i];
       var player = GameState.players[i];
 
-      // Update money
-      panel.moneyText.setText('💰 ' + player.money + ' SAR');
+      panel.moneyText.setText('SAR ' + player.money);
       if (player.money < 0) {
         panel.moneyText.setColor(COLORS.danger);
       } else {
         panel.moneyText.setColor(COLORS.desertGold);
       }
 
-      // Update properties
-      panel.propsText.setText('🏠 ' + player.properties.length + ' properties');
+      panel.propsText.setText(player.properties.length + ' properties');
 
-      // Update net worth
       var worth = GameState.getPlayerNetWorth(player);
       panel.worthText.setText('Net: ' + worth + ' SAR');
 
       // Active player glow
-      panel.glow.setVisible(i === GameState.currentPlayerIndex && !player.bankrupt);
+      var isActive = (i === GameState.currentPlayerIndex && !player.bankrupt);
+      panel.glow.setVisible(isActive);
+
+      // Show glow ring on active player's token
+      if (this.tokenSprites[i] && this.tokenSprites[i].glowRing) {
+        this.tokenSprites[i].glowRing.setVisible(isActive);
+      }
 
       // Bankrupt visual
       if (player.bankrupt) {
@@ -710,6 +910,8 @@ var BoardScene = new Phaser.Class({
           var dot = this.add.graphics();
           dot.fillStyle(space.colorInt, 1);
           dot.fillCircle(dotX, 0, 5);
+          dot.lineStyle(1, 0xFFFFFF, 0.3);
+          dot.strokeCircle(dotX, 0, 5);
           panel.dotsContainer.add(dot);
           dotX -= 14;
         }
@@ -718,10 +920,9 @@ var BoardScene = new Phaser.Class({
   },
 
   // -------------------------------------------------------
-  // Ownership markers on board
+  // Premium Ownership Markers
   // -------------------------------------------------------
   updateBoardOwnership: function() {
-    // Remove old markers
     if (this.ownershipMarkers) {
       for (var i = 0; i < this.ownershipMarkers.length; i++) {
         this.ownershipMarkers[i].destroy();
@@ -735,29 +936,43 @@ var BoardScene = new Phaser.Class({
         var pos = this.spacePositions[j];
         var player = GameState.players[pd.owner];
 
-        // Small ownership dot
         var marker = this.add.graphics();
-        marker.fillStyle(player.color, 0.8);
+        // Ownership ring instead of dot
+        marker.lineStyle(2, player.color, 0.8);
 
         if (pos.side === 'bottom') {
-          marker.fillCircle(pos.x, pos.y + pos.h/2 - 6, 4);
+          marker.strokeCircle(pos.x, pos.y + pos.h / 2 - 6, 4);
+          marker.fillStyle(player.color, 0.4);
+          marker.fillCircle(pos.x, pos.y + pos.h / 2 - 6, 3);
         } else if (pos.side === 'top') {
-          marker.fillCircle(pos.x, pos.y - pos.h/2 + 6, 4);
+          marker.strokeCircle(pos.x, pos.y - pos.h / 2 + 6, 4);
+          marker.fillStyle(player.color, 0.4);
+          marker.fillCircle(pos.x, pos.y - pos.h / 2 + 6, 3);
         } else if (pos.side === 'left') {
-          marker.fillCircle(pos.x - pos.w/2 + 6, pos.y, 4);
+          marker.strokeCircle(pos.x - pos.w / 2 + 6, pos.y, 4);
+          marker.fillStyle(player.color, 0.4);
+          marker.fillCircle(pos.x - pos.w / 2 + 6, pos.y, 3);
         } else if (pos.side === 'right') {
-          marker.fillCircle(pos.x + pos.w/2 - 6, pos.y, 4);
+          marker.strokeCircle(pos.x + pos.w / 2 - 6, pos.y, 4);
+          marker.fillStyle(player.color, 0.4);
+          marker.fillCircle(pos.x + pos.w / 2 - 6, pos.y, 3);
         }
 
-        // House indicators
+        // Hotel indicator - red with highlight
         if (pd.hotel) {
           marker.fillStyle(0xFF0000, 1);
-          marker.fillRect(pos.x - 5, pos.y - (pos.side === 'bottom' ? pos.h/2 + 2 : -pos.h/2 - 8), 10, 6);
+          marker.fillRect(pos.x - 5, pos.y - (pos.side === 'bottom' ? pos.h / 2 + 2 : -pos.h / 2 - 8), 10, 6);
+          marker.fillStyle(0xFFFFFF, 0.25);
+          marker.fillRect(pos.x - 5, pos.y - (pos.side === 'bottom' ? pos.h / 2 + 2 : -pos.h / 2 - 8), 10, 2);
         } else if (pd.houses > 0) {
+          // House indicators - green with highlight
           for (var k = 0; k < pd.houses; k++) {
             marker.fillStyle(0x00AA00, 1);
             var hx = pos.x - 10 + k * 7;
-            marker.fillRect(hx, pos.y - (pos.side === 'bottom' ? pos.h/2 + 2 : -pos.h/2 - 6), 5, 4);
+            var hy = pos.y - (pos.side === 'bottom' ? pos.h / 2 + 2 : -pos.h / 2 - 6);
+            marker.fillRect(hx, hy, 5, 4);
+            marker.fillStyle(0xFFFFFF, 0.2);
+            marker.fillRect(hx, hy, 5, 1);
           }
         }
 
@@ -775,8 +990,7 @@ var BoardScene = new Phaser.Class({
     this.updateHUD();
     this.updateBoardOwnership();
 
-    // Highlight current player
-    this.turnInfoText.setText('دور: ' + player.name);
+    this.turnInfoText.setText(player.name);
     this.turnInfoSubtext.setText("Turn: " + player.name);
 
     if (player.inJail) {
@@ -789,10 +1003,9 @@ var BoardScene = new Phaser.Class({
 
   showRollPrompt: function() {
     var self = this;
-    this.actionHintText.setText('اضغط Enter لرمي النرد');
-    this.actionHintSubtext.setText('Press Enter to Roll Dice');
+    this.actionHintText.setText('Press Enter to Roll');
+    this.actionHintSubtext.setText('اضغط Enter لرمي النرد');
 
-    // Pulsing hint
     this.tweens.add({
       targets: this.actionHintText,
       alpha: 0.4,
@@ -813,12 +1026,10 @@ var BoardScene = new Phaser.Class({
       self.doRoll();
     });
 
-    // Build houses shortcut
     InputManager.on('yellow', function() {
       self.showBuildMenu();
     });
 
-    // Mortgage shortcut
     InputManager.on('blue', function() {
       self.showMortgageMenu();
     });
@@ -829,18 +1040,16 @@ var BoardScene = new Phaser.Class({
     var player = GameState.currentPlayer();
     var dice = GameState.rollDice();
 
-    // Show dice in board center
     var cx = this.boardX + this.boardSize / 2;
     var cy = this.boardY + this.boardSize / 2 + 80;
     DiceManager.setPosition(cx, cy);
 
     DiceManager.roll(dice.d1, dice.d2, function(result) {
-      // Check triple doubles
       if (result.isDoubles) {
         GameState.doublesCount++;
         if (GameState.doublesCount >= 3) {
-          self.actionHintText.setText('ثلاث مرات متتالية! اذهب للسجن');
-          self.actionHintSubtext.setText('Triple doubles! Go to Jail!');
+          self.actionHintText.setText('Triple doubles! Go to Jail!');
+          self.actionHintSubtext.setText('ثلاث مرات متتالية! اذهب للسجن');
           AudioManager.goToJail();
           GameState.sendToJail(player);
           self.teleportToken(player.index, 10);
@@ -854,18 +1063,15 @@ var BoardScene = new Phaser.Class({
         GameState.doublesCount = 0;
       }
 
-      // Move player
       var oldPos = player.position;
       var moveResult = GameState.movePlayer(player, result.total);
 
-      // Passed GO
       if (moveResult.passedGo) {
         player.money += 200;
         self.showMessage('مررت بإنطلق! +200 SAR', 'Passed GO! +200 SAR', COLORS.success);
         AudioManager.collect();
       }
 
-      // Animate movement
       self.moveTokenAnimated(player.index, oldPos, moveResult.newPos, function() {
         DiceManager.hide();
         self.handleLanding(result.isDoubles);
@@ -995,7 +1201,6 @@ var BoardScene = new Phaser.Class({
         var oldPos = player.position;
         self.moveTokenAnimated(player.index, oldPos, player.position, function() {
           self.updateHUD();
-          // Check if landing on new space triggers action
           var newAction = GameState.getLandingAction(player);
           if (newAction.type === 'unowned') {
             self.showPropertyCard(newAction.spaceIndex, function() {
@@ -1043,7 +1248,6 @@ var BoardScene = new Phaser.Class({
     DiceManager.hide();
     this.clearAction();
 
-    // Check for game over
     var active = GameState.getActivePlayers();
     if (active.length <= 1) {
       this.time.delayedCall(500, function() {
@@ -1053,7 +1257,6 @@ var BoardScene = new Phaser.Class({
     }
 
     if (rolledDoubles && !GameState.currentPlayer().inJail) {
-      // Roll again
       this.showMessage('مرة أخرى!', 'Doubles! Roll again!', COLORS.accent);
       this.time.delayedCall(1000, function() {
         self.turnState = 'waitRoll';
@@ -1080,26 +1283,23 @@ var BoardScene = new Phaser.Class({
     var self = this;
     var player = GameState.currentPlayer();
 
-    this.actionHintText.setText('في السجن - اختر خيار');
-    this.actionHintSubtext.setText('In Jail — Choose an option');
+    this.actionHintText.setText('In Jail - Choose');
+    this.actionHintSubtext.setText('في السجن - اختر خيار');
 
     var options = [];
     var optionLabels = [];
 
-    // Roll for doubles
     options.push('roll');
-    optionLabels.push('🎲 Roll for Doubles');
+    optionLabels.push('Roll for Doubles');
 
-    // Pay 50
     if (player.money >= 50) {
       options.push('pay');
-      optionLabels.push('💰 Pay 50 SAR');
+      optionLabels.push('Pay 50 SAR');
     }
 
-    // Use card
     if (player.jailFreeCards > 0) {
       options.push('card');
-      optionLabels.push('🃏 Use Jail Free Card');
+      optionLabels.push('Use Jail Free Card');
     }
 
     this.showSimpleMenu(optionLabels, function(idx) {
@@ -1129,14 +1329,14 @@ var BoardScene = new Phaser.Class({
               });
             }
           } else {
-            self.showMessage('لم تحصل على مزدوج', 'No doubles — still in jail', COLORS.danger);
+            self.showMessage('لم تحصل على مزدوج', 'No doubles - still in jail', COLORS.danger);
             DiceManager.hide();
             self.time.delayedCall(1200, function() { self.endTurn(false); });
           }
         });
       } else if (choice === 'pay') {
         GameState.payJailFine(player);
-        self.showMessage('دفعت 50 ريال - خرجت!', 'Paid 50 SAR — Free!', COLORS.success);
+        self.showMessage('دفعت 50 ريال - خرجت!', 'Paid 50 SAR - Free!', COLORS.success);
         self.updateHUD();
         self.time.delayedCall(800, function() {
           self.turnState = 'waitRoll';
@@ -1155,7 +1355,7 @@ var BoardScene = new Phaser.Class({
   },
 
   // -------------------------------------------------------
-  // Property Card Overlay
+  // Premium Property Card Overlay
   // -------------------------------------------------------
   showPropertyCard: function(spaceIndex, callback) {
     var self = this;
@@ -1168,28 +1368,46 @@ var BoardScene = new Phaser.Class({
     var x = GAME_WIDTH - w - 40;
     var y = (GAME_HEIGHT - h) / 2;
 
-    var container = this.add.container(x + w, y); // start off-screen right
+    var container = this.add.container(x + w, y);
     this.actionContainer.add(container);
+
+    // Shadow backdrop
+    var cardShadow = this.add.graphics();
+    cardShadow.fillStyle(0x000000, 0.4);
+    cardShadow.fillRoundedRect(5, 5, w, h, 16);
+    container.add(cardShadow);
 
     // Card background
     var bg = this.add.graphics();
-    bg.fillStyle(0x1A2744, 0.98);
+    bg.fillStyle(0x0C1729, 0.98);
     bg.fillRoundedRect(0, 0, w, h, 16);
+    // Upper highlight
+    bg.fillStyle(0x162340, 0.3);
+    bg.fillRoundedRect(0, 0, w, h / 3, { tl: 16, tr: 16, bl: 0, br: 0 });
     container.add(bg);
 
-    // Color bar
+    // Color bar header with gradient feel
     if (space.colorInt) {
       var bar = this.add.graphics();
       bar.fillStyle(space.colorInt, 1);
       bar.fillRoundedRect(0, 0, w, 50, { tl: 16, tr: 16, bl: 0, br: 0 });
+      // Highlight on top of color bar
+      bar.fillStyle(0xFFFFFF, 0.15);
+      bar.fillRoundedRect(0, 0, w, 15, { tl: 16, tr: 16, bl: 0, br: 0 });
       container.add(bar);
     }
 
     // Border
     var border = this.add.graphics();
-    border.lineStyle(2, space.colorInt || 0xC8A951, 0.8);
+    border.lineStyle(2, space.colorInt || 0xC8A951, 0.7);
     border.strokeRoundedRect(0, 0, w, h, 16);
     container.add(border);
+
+    // Subtle shine effect
+    var shine = this.add.graphics();
+    shine.fillStyle(0xFFFFFF, 0.02);
+    shine.fillRoundedRect(10, 10, w - 20, h / 4, 10);
+    container.add(shine);
 
     // Property name (Arabic)
     var nameAr = this.add.text(w / 2, 75, space.name, {
@@ -1210,7 +1428,7 @@ var BoardScene = new Phaser.Class({
 
     // District
     if (space.district) {
-      var district = this.add.text(w / 2, 138, '📍 ' + space.district, {
+      var district = this.add.text(w / 2, 138, space.district, {
         fontFamily: '"Fredoka One", sans-serif',
         fontSize: '14px',
         color: COLORS.textSecondary,
@@ -1220,18 +1438,32 @@ var BoardScene = new Phaser.Class({
     }
 
     // Price
-    var priceText = this.add.text(w / 2, 170, '💰 ' + space.price + ' SAR', {
+    var priceText = this.add.text(w / 2, 170, space.price + ' SAR', {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '28px',
       color: COLORS.desertGold,
     }).setOrigin(0.5);
     container.add(priceText);
 
+    // Divider line
+    var divider = this.add.graphics();
+    divider.lineStyle(1, 0xC8A951, 0.2);
+    divider.lineBetween(30, 195, w - 30, 195);
+    container.add(divider);
+
     // Rent table
     if (space.rent) {
       var rentY = 210;
-      var rentLabels = ['Base Rent', 'With 1 House', 'With 2 Houses', 'With 3 Houses', 'With 4 Houses', 'With Hotel'];
+      var rentLabels = ['Base Rent', '1 House', '2 Houses', '3 Houses', '4 Houses', 'Hotel'];
       for (var i = 0; i < space.rent.length; i++) {
+        // Alternating row backgrounds
+        if (i % 2 === 0) {
+          var rowBg = this.add.graphics();
+          rowBg.fillStyle(0xFFFFFF, 0.02);
+          rowBg.fillRect(20, rentY + i * 24 - 2, w - 40, 22);
+          container.add(rowBg);
+        }
+
         var rlabel = this.add.text(30, rentY + i * 24, rentLabels[i], {
           fontFamily: '"Fredoka One", sans-serif',
           fontSize: '14px',
@@ -1245,7 +1477,12 @@ var BoardScene = new Phaser.Class({
         container.add([rlabel, rval]);
       }
 
-      // House cost
+      // Divider before house cost
+      var div2 = this.add.graphics();
+      div2.lineStyle(1, 0xC8A951, 0.15);
+      div2.lineBetween(30, rentY + 150, w - 30, rentY + 150);
+      container.add(div2);
+
       if (space.house) {
         var houseText = this.add.text(w / 2, rentY + 160, 'House cost: ' + space.house + ' SAR', {
           fontFamily: '"Fredoka One", sans-serif',
@@ -1279,14 +1516,20 @@ var BoardScene = new Phaser.Class({
 
     // Buy button
     var buyBg = this.add.graphics();
-    buyBg.fillStyle(canBuy ? 0x006C35 : 0x333333, 1);
-    buyBg.fillRoundedRect(20, buyBtnY, w / 2 - 30, 44, 8);
+    if (canBuy) {
+      buyBg.fillStyle(0x006C35, 1);
+      buyBg.fillRoundedRect(20, buyBtnY, w / 2 - 30, 44, 8);
+      buyBg.fillStyle(0xFFFFFF, 0.08);
+      buyBg.fillRoundedRect(20, buyBtnY, w / 2 - 30, 20, { tl: 8, tr: 8, bl: 0, br: 0 });
+    } else {
+      buyBg.fillStyle(0x333333, 1);
+      buyBg.fillRoundedRect(20, buyBtnY, w / 2 - 30, 44, 8);
+    }
     container.add(buyBg);
 
-    var buyLabel = this.add.text(20 + (w / 2 - 30) / 2, buyBtnY + 22, 'شراء | Buy', {
-      fontFamily: 'Tajawal, sans-serif',
+    var buyLabel = this.add.text(20 + (w / 2 - 30) / 2, buyBtnY + 22, 'Buy', {
+      fontFamily: '"Fredoka One", sans-serif',
       fontSize: '20px',
-      fontStyle: 'bold',
       color: canBuy ? '#FFFFFF' : '#666666',
     }).setOrigin(0.5);
     container.add(buyLabel);
@@ -1295,25 +1538,26 @@ var BoardScene = new Phaser.Class({
     var passBg = this.add.graphics();
     passBg.fillStyle(0x2A3F6B, 1);
     passBg.fillRoundedRect(w / 2 + 10, buyBtnY, w / 2 - 30, 44, 8);
+    passBg.fillStyle(0xFFFFFF, 0.05);
+    passBg.fillRoundedRect(w / 2 + 10, buyBtnY, w / 2 - 30, 20, { tl: 8, tr: 8, bl: 0, br: 0 });
     container.add(passBg);
 
-    var passLabel = this.add.text(w / 2 + 10 + (w / 2 - 30) / 2, buyBtnY + 22, 'تجاوز | Pass', {
-      fontFamily: 'Tajawal, sans-serif',
+    var passLabel = this.add.text(w / 2 + 10 + (w / 2 - 30) / 2, buyBtnY + 22, 'Pass', {
+      fontFamily: '"Fredoka One", sans-serif',
       fontSize: '20px',
-      fontStyle: 'bold',
       color: COLORS.warmSand,
     }).setOrigin(0.5);
     container.add(passLabel);
 
-    // Focus indicator
+    // Focus indicators
     var focusIdx = canBuy ? 0 : 1;
     var buyGlow = this.add.graphics();
-    buyGlow.lineStyle(2, 0xE8B931, 1);
+    buyGlow.lineStyle(2, 0xFFD700, 1);
     buyGlow.strokeRoundedRect(18, buyBtnY - 2, w / 2 - 26, 48, 10);
     container.add(buyGlow);
 
     var passGlow = this.add.graphics();
-    passGlow.lineStyle(2, 0xE8B931, 1);
+    passGlow.lineStyle(2, 0xFFD700, 1);
     passGlow.strokeRoundedRect(w / 2 + 8, buyBtnY - 2, w / 2 - 26, 48, 10);
     container.add(passGlow);
 
@@ -1361,7 +1605,7 @@ var BoardScene = new Phaser.Class({
   },
 
   // -------------------------------------------------------
-  // Card Reveal Overlay
+  // Premium Card Reveal Overlay
   // -------------------------------------------------------
   showCardReveal: function(card, type, callback) {
     var self = this;
@@ -1373,29 +1617,53 @@ var BoardScene = new Phaser.Class({
     var y = (GAME_HEIGHT - h) / 2;
 
     var container = this.add.container(x, y);
-    container.setScale(0.5);
+    container.setScale(0.3);
     container.setAlpha(0);
     this.actionContainer.add(container);
 
+    var isChance = (type === 'chance');
+    var bgColor = isChance ? 0x2A1A44 : 0x1A3744;
+    var borderColor = isChance ? 0xE8B931 : 0x87CEEB;
+
+    // Card shadow
+    var cardShadow = this.add.graphics();
+    cardShadow.fillStyle(0x000000, 0.3);
+    cardShadow.fillRoundedRect(4, 4, w, h, 16);
+    container.add(cardShadow);
+
     // Card background
     var bg = this.add.graphics();
-    bg.fillStyle(type === 'chance' ? 0x2A1A44 : 0x1A3744, 0.98);
+    bg.fillStyle(bgColor, 0.98);
     bg.fillRoundedRect(0, 0, w, h, 16);
+    // Top highlight
+    bg.fillStyle(0xFFFFFF, 0.03);
+    bg.fillRoundedRect(0, 0, w, h / 3, { tl: 16, tr: 16, bl: 0, br: 0 });
     container.add(bg);
 
+    // Decorative border
     var border = this.add.graphics();
-    border.lineStyle(2, type === 'chance' ? 0xE8B931 : 0x87CEEB, 0.8);
+    border.lineStyle(2, borderColor, 0.8);
     border.strokeRoundedRect(0, 0, w, h, 16);
+    // Inner decorative border
+    border.lineStyle(1, borderColor, 0.2);
+    border.strokeRoundedRect(8, 8, w - 16, h - 16, 12);
     container.add(border);
 
     // Type header
-    var header = this.add.text(w / 2, 30, type === 'chance' ? '🎯 فرصة | Chance' : '📦 صندوق المجتمع | Community Chest', {
-      fontFamily: 'Tajawal, sans-serif',
-      fontSize: '24px',
+    var headerText = isChance ? 'Chance' : 'Community Chest';
+    var header = this.add.text(w / 2, 30, headerText, {
+      fontFamily: '"Fredoka One", sans-serif',
+      fontSize: '22px',
       fontStyle: 'bold',
-      color: type === 'chance' ? COLORS.accent : COLORS.warmSand,
+      color: isChance ? COLORS.accent : COLORS.warmSand,
     }).setOrigin(0.5);
     container.add(header);
+
+    // Decorative line under header
+    var hLine = this.add.graphics();
+    hLine.lineStyle(1, borderColor, 0.3);
+    hLine.lineBetween(40, 50, w - 40, 50);
+    container.add(hLine);
 
     // Card text (Arabic)
     var textAr = this.add.text(w / 2, 90, card.text, {
@@ -1420,10 +1688,10 @@ var BoardScene = new Phaser.Class({
     container.add(textEn);
 
     // OK prompt
-    var ok = this.add.text(w / 2, h - 30, 'Enter ✓', {
+    var ok = this.add.text(w / 2, h - 30, 'Press Enter', {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '18px',
-      color: COLORS.accent,
+      fontSize: '16px',
+      color: isChance ? COLORS.accent : '#87CEEB',
     }).setOrigin(0.5);
     container.add(ok);
 
@@ -1433,7 +1701,7 @@ var BoardScene = new Phaser.Class({
       scaleX: 1,
       scaleY: 1,
       alpha: 1,
-      duration: 400,
+      duration: 350,
       ease: 'Back.easeOut',
     });
 
@@ -1476,7 +1744,6 @@ var BoardScene = new Phaser.Class({
           self.updateBoardOwnership();
         }
       }
-      // Return to roll prompt if still waiting
       if (self.turnState === 'waitRoll') {
         self.showRollPrompt();
       }
@@ -1537,7 +1804,7 @@ var BoardScene = new Phaser.Class({
   },
 
   // -------------------------------------------------------
-  // Simple Menu (for jail, build, mortgage, etc.)
+  // Premium Simple Menu
   // -------------------------------------------------------
   showSimpleMenu: function(labels, callback) {
     var self = this;
@@ -1550,12 +1817,22 @@ var BoardScene = new Phaser.Class({
     var y = (GAME_HEIGHT - h) / 2;
 
     var container = this.add.container(x, y);
+    container.setAlpha(0);
     this.actionContainer.add(container);
 
+    // Shadow
+    var menuShadow = this.add.graphics();
+    menuShadow.fillStyle(0x000000, 0.3);
+    menuShadow.fillRoundedRect(4, 4, w, h, 12);
+    container.add(menuShadow);
+
+    // Background
     var bg = this.add.graphics();
-    bg.fillStyle(0x1A2744, 0.98);
+    bg.fillStyle(0x0C1729, 0.98);
     bg.fillRoundedRect(0, 0, w, h, 12);
-    bg.lineStyle(2, 0xC8A951, 0.5);
+    bg.fillStyle(0x162340, 0.2);
+    bg.fillRoundedRect(0, 0, w, 30, { tl: 12, tr: 12, bl: 0, br: 0 });
+    bg.lineStyle(2, 0xC8A951, 0.4);
     bg.strokeRoundedRect(0, 0, w, h, 12);
     container.add(bg);
 
@@ -1564,7 +1841,7 @@ var BoardScene = new Phaser.Class({
 
     for (var i = 0; i < labels.length; i++) {
       var itemBg = this.add.graphics();
-      itemBg.fillStyle(0x2A3F6B, 0);
+      itemBg.fillStyle(0x1E3355, 0);
       itemBg.fillRoundedRect(10, 20 + i * itemH, w - 20, itemH - 4, 6);
       container.add(itemBg);
 
@@ -1576,7 +1853,9 @@ var BoardScene = new Phaser.Class({
       container.add(itemText);
 
       var itemGlow = this.add.graphics();
-      itemGlow.lineStyle(2, 0xE8B931, 1);
+      itemGlow.fillStyle(0xC8A951, 0.08);
+      itemGlow.fillRoundedRect(10, 20 + i * itemH, w - 20, itemH - 4, 6);
+      itemGlow.lineStyle(2, 0xFFD700, 0.8);
       itemGlow.strokeRoundedRect(8, 18 + i * itemH, w - 16, itemH, 8);
       itemGlow.setVisible(false);
       container.add(itemGlow);
@@ -1591,6 +1870,14 @@ var BoardScene = new Phaser.Class({
       }
     };
     updateFocus();
+
+    // Fade in
+    this.tweens.add({
+      targets: container,
+      alpha: 1,
+      duration: 200,
+      ease: 'Quad.easeOut',
+    });
 
     InputManager.clear();
     InputManager.setupKeyboard(this);
@@ -1611,7 +1898,7 @@ var BoardScene = new Phaser.Class({
     });
     InputManager.on('back', function() {
       self.clearAction();
-      if (callback) callback(labels.length - 1); // Cancel
+      if (callback) callback(labels.length - 1);
     });
   },
 
@@ -1629,7 +1916,6 @@ var BoardScene = new Phaser.Class({
       COLORS.danger
     );
 
-    // Hide token
     this.tokenSprites[player.index].container.setVisible(false);
 
     this.updateHUD();
@@ -1641,7 +1927,7 @@ var BoardScene = new Phaser.Class({
   },
 
   // -------------------------------------------------------
-  // Message Display
+  // Premium Message Display
   // -------------------------------------------------------
   showMessage: function(textAr, textEn, color) {
     this.messageContainer.removeAll(true);
@@ -1650,33 +1936,65 @@ var BoardScene = new Phaser.Class({
     var w = 500;
     var h = 80;
     var x = this.boardX + this.boardSize / 2 - w / 2;
-    var y = 10;
+    var y = -h; // start above screen
 
+    var msgContainer = this.add.container(x, y);
+    this.messageContainer.add(msgContainer);
+
+    // Shadow
+    var shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.3);
+    shadow.fillRoundedRect(3, 3, w, h, 10);
+    msgContainer.add(shadow);
+
+    // Background with gradient feel
     var bg = this.add.graphics();
-    bg.fillStyle(0x0A1628, 0.9);
-    bg.fillRoundedRect(x, y, w, h, 10);
-    bg.lineStyle(2, hexToInt(color), 0.6);
-    bg.strokeRoundedRect(x, y, w, h, 10);
-    this.messageContainer.add(bg);
+    bg.fillStyle(0x060E1A, 0.95);
+    bg.fillRoundedRect(0, 0, w, h, 10);
+    bg.fillStyle(0x0F1B2E, 0.4);
+    bg.fillRoundedRect(0, 0, w, h / 2, { tl: 10, tr: 10, bl: 0, br: 0 });
+    // Color accent line on left
+    bg.fillStyle(hexToInt(color), 0.8);
+    bg.fillRoundedRect(0, 5, 4, h - 10, 2);
+    bg.lineStyle(2, hexToInt(color), 0.5);
+    bg.strokeRoundedRect(0, 0, w, h, 10);
+    msgContainer.add(bg);
 
-    var msgAr = this.add.text(x + w / 2, y + 22, textAr, {
+    var msgAr = this.add.text(w / 2, 22, textAr, {
       fontFamily: 'Tajawal, sans-serif',
       fontSize: '24px',
       fontStyle: 'bold',
       color: color,
     }).setOrigin(0.5);
-    this.messageContainer.add(msgAr);
+    msgContainer.add(msgAr);
 
-    var msgEn = this.add.text(x + w / 2, y + 52, textEn, {
+    var msgEn = this.add.text(w / 2, 52, textEn, {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '16px',
       color: COLORS.textSecondary,
     }).setOrigin(0.5);
-    this.messageContainer.add(msgEn);
+    msgContainer.add(msgEn);
 
+    // Slide in from top
     var self = this;
-    this.time.delayedCall(3000, function() {
-      self.messageContainer.removeAll(true);
+    this.tweens.add({
+      targets: msgContainer,
+      y: 10,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+
+    // Auto-hide with slide out
+    this.time.delayedCall(2500, function() {
+      self.tweens.add({
+        targets: msgContainer,
+        y: -h - 10,
+        duration: 250,
+        ease: 'Quad.easeIn',
+        onComplete: function() {
+          self.messageContainer.removeAll(true);
+        }
+      });
     });
   },
 

@@ -1,157 +1,400 @@
 // ============================================================
-// Riyadh Tycoon — Dice Animation System
+// Riyadh Tycoon — Premium 3D Dice Animation System
 // ============================================================
 
-var DiceManager = {
-  scene: null,
-  container: null,
-  die1: null,
-  die2: null,
-  rolling: false,
-  result: null,
-  onComplete: null,
+var DiceManager = (function() {
 
-  create: function(scene, x, y) {
-    this.scene = scene;
-    this.container = scene.add.container(x, y);
-    this.container.setDepth(100);
+  // --- Constants ---
+  var DIE_SIZE = 80;
+  var DIE_HALF = DIE_SIZE / 2;
+  var DIE_RADIUS = 12;
+  var DOT_RADIUS = 7;
+  var DOT_HIGHLIGHT_RADIUS = 3;
+  var DOT_SHADOW_OFFSET = 1.5;
+  var DIE_SPACING = 50;
+  var SHADOW_OFFSET_Y = 8;
 
-    // Create two dice graphics
-    this.die1 = this.createDie(scene, -45, 0);
-    this.die2 = this.createDie(scene, 45, 0);
-    this.container.add([this.die1.container]);
-    this.container.add([this.die2.container]);
-    this.container.setVisible(false);
-  },
+  // Colors
+  var COL_BODY = 0xFCF5E5;
+  var COL_BORDER = 0xC8A951;
+  var COL_HIGHLIGHT = 0xFFFDF5;
+  var COL_BEVEL_DARK = 0xD8CDB0;
+  var COL_DOT = 0x1A2744;
+  var COL_DOT_HIGHLIGHT = 0x3A4F6E;
+  var COL_DOT_SHADOW = 0x0C1422;
+  var COL_SHADOW = 0x040810;
+  var COL_GLOW_DOUBLES = 0xE8B931;
+  var COL_TOTAL_BG = 0x0F1B2E;
+  var COL_TOTAL_BORDER = 0xC8A951;
 
-  createDie: function(scene, x, y) {
-    var dieContainer = scene.add.container(x, y);
-    var size = 70;
+  // Roll animation
+  var ROLL_FRAMES = 14;
+  var ROLL_INTERVAL = 75;
+  var RESULT_HOLD_MS = 900;
 
-    // Die background
-    var bg = scene.add.graphics();
-    bg.fillStyle(0xFCF5E5, 1);
-    bg.fillRoundedRect(-size/2, -size/2, size, size, 10);
-    bg.lineStyle(3, 0xC8A951, 1);
-    bg.strokeRoundedRect(-size/2, -size/2, size, size, 10);
-    dieContainer.add(bg);
+  // --- Cached dot position lookup (value -> [{x,y}]) ---
+  var DOT_POSITIONS_CACHE = null;
 
-    // Dots container
-    var dotsContainer = scene.add.container(0, 0);
-    dieContainer.add(dotsContainer);
-
-    return { container: dieContainer, bg: bg, dotsContainer: dotsContainer, size: size };
-  },
-
-  drawDots: function(die, value) {
-    die.dotsContainer.removeAll(true);
-    var s = die.size;
-    var r = 6;
-    var positions = this.getDotPositions(value, s);
-
-    for (var i = 0; i < positions.length; i++) {
-      var dot = this.scene.add.graphics();
-      dot.fillStyle(0x1A2744, 1);
-      dot.fillCircle(positions[i].x, positions[i].y, r);
-      die.dotsContainer.add(dot);
-    }
-  },
-
-  getDotPositions: function(value, s) {
-    var cx = 0, cy = 0;
-    var off = s * 0.25;
-    var positions = {
+  function buildDotPositions() {
+    if (DOT_POSITIONS_CACHE) return DOT_POSITIONS_CACHE;
+    var off = DIE_SIZE * 0.25;
+    var cx = 0;
+    var cy = 0;
+    DOT_POSITIONS_CACHE = {
       1: [{ x: cx, y: cy }],
       2: [{ x: cx - off, y: cy - off }, { x: cx + off, y: cy + off }],
       3: [{ x: cx - off, y: cy - off }, { x: cx, y: cy }, { x: cx + off, y: cy + off }],
-      4: [{ x: cx - off, y: cy - off }, { x: cx + off, y: cy - off }, { x: cx - off, y: cy + off }, { x: cx + off, y: cy + off }],
-      5: [{ x: cx - off, y: cy - off }, { x: cx + off, y: cy - off }, { x: cx, y: cy }, { x: cx - off, y: cy + off }, { x: cx + off, y: cy + off }],
-      6: [{ x: cx - off, y: cy - off }, { x: cx + off, y: cy - off }, { x: cx - off, y: cy }, { x: cx + off, y: cy }, { x: cx - off, y: cy + off }, { x: cx + off, y: cy + off }],
+      4: [
+        { x: cx - off, y: cy - off }, { x: cx + off, y: cy - off },
+        { x: cx - off, y: cy + off }, { x: cx + off, y: cy + off }
+      ],
+      5: [
+        { x: cx - off, y: cy - off }, { x: cx + off, y: cy - off },
+        { x: cx, y: cy },
+        { x: cx - off, y: cy + off }, { x: cx + off, y: cy + off }
+      ],
+      6: [
+        { x: cx - off, y: cy - off }, { x: cx + off, y: cy - off },
+        { x: cx - off, y: cy },       { x: cx + off, y: cy },
+        { x: cx - off, y: cy + off }, { x: cx + off, y: cy + off }
+      ]
     };
-    return positions[value] || positions[1];
-  },
+    return DOT_POSITIONS_CACHE;
+  }
 
-  roll: function(d1, d2, callback) {
-    if (this.rolling) return;
-    this.rolling = true;
-    this.onComplete = callback;
-    this.result = { d1: d1, d2: d2, total: d1 + d2, isDoubles: d1 === d2 };
-    this.container.setVisible(true);
-    this.container.setAlpha(1);
+  // --- Die factory ---
+  function createDie(scene, x, y) {
+    var dieContainer = scene.add.container(x, y);
 
-    var self = this;
-    var frames = 0;
-    var maxFrames = 12;
+    // 1) Drop shadow (dark ellipse underneath)
+    var shadow = scene.add.graphics();
+    shadow.fillStyle(COL_SHADOW, 0.35);
+    shadow.fillEllipse(0, DIE_HALF + SHADOW_OFFSET_Y, DIE_SIZE * 0.85, 14);
+    dieContainer.add(shadow);
 
-    AudioManager.diceRoll();
+    // 2) Main body
+    var body = scene.add.graphics();
+    body.fillStyle(COL_BODY, 1);
+    body.fillRoundedRect(-DIE_HALF, -DIE_HALF, DIE_SIZE, DIE_SIZE, DIE_RADIUS);
+    dieContainer.add(body);
 
-    // Animate random faces
-    var interval = setInterval(function() {
-      var rv1 = Math.floor(Math.random() * 6) + 1;
-      var rv2 = Math.floor(Math.random() * 6) + 1;
-      self.drawDots(self.die1, rv1);
-      self.drawDots(self.die2, rv2);
+    // 3) Gold border
+    var border = scene.add.graphics();
+    border.lineStyle(2.5, COL_BORDER, 1);
+    border.strokeRoundedRect(-DIE_HALF, -DIE_HALF, DIE_SIZE, DIE_SIZE, DIE_RADIUS);
+    dieContainer.add(border);
 
-      // Wobble
-      self.die1.container.setRotation((Math.random() - 0.5) * 0.3);
-      self.die2.container.setRotation((Math.random() - 0.5) * 0.3);
+    // 4) Top bevel highlight — lighter stripe near top edge
+    var bevelTop = scene.add.graphics();
+    bevelTop.fillStyle(COL_HIGHLIGHT, 0.55);
+    bevelTop.fillRoundedRect(
+      -DIE_HALF + 4, -DIE_HALF + 2,
+      DIE_SIZE - 8, 10,
+      { tl: DIE_RADIUS - 2, tr: DIE_RADIUS - 2, bl: 0, br: 0 }
+    );
+    dieContainer.add(bevelTop);
 
-      frames++;
-      if (frames >= maxFrames) {
-        clearInterval(interval);
-        self.showResult();
-      }
-    }, 100);
-  },
+    // 5) Bottom bevel shadow — darker stripe near bottom edge
+    var bevelBottom = scene.add.graphics();
+    bevelBottom.fillStyle(COL_BEVEL_DARK, 0.5);
+    bevelBottom.fillRoundedRect(
+      -DIE_HALF + 4, DIE_HALF - 12,
+      DIE_SIZE - 8, 10,
+      { tl: 0, tr: 0, bl: DIE_RADIUS - 2, br: DIE_RADIUS - 2 }
+    );
+    dieContainer.add(bevelBottom);
 
-  showResult: function() {
-    var self = this;
-    // Show final result
-    this.drawDots(this.die1, this.result.d1);
-    this.drawDots(this.die2, this.result.d2);
-    this.die1.container.setRotation(0);
-    this.die2.container.setRotation(0);
+    // 6) Dots container (redrawn per face value)
+    var dotsContainer = scene.add.container(0, 0);
+    dieContainer.add(dotsContainer);
 
-    // Bounce effect
-    this.scene.tweens.add({
-      targets: this.die1.container,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      duration: 100,
-      yoyo: true,
-      ease: 'Bounce.easeOut'
-    });
-    this.scene.tweens.add({
-      targets: this.die2.container,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      duration: 100,
-      yoyo: true,
-      ease: 'Bounce.easeOut'
-    });
+    // 7) Glow graphic (hidden by default, shown on doubles)
+    var glow = scene.add.graphics();
+    glow.fillStyle(COL_GLOW_DOUBLES, 0.25);
+    glow.fillRoundedRect(
+      -DIE_HALF - 4, -DIE_HALF - 4,
+      DIE_SIZE + 8, DIE_SIZE + 8,
+      DIE_RADIUS + 2
+    );
+    glow.setAlpha(0);
+    dieContainer.add(glow);
 
-    if (this.result.isDoubles) {
-      AudioManager.doubles();
-    }
+    return {
+      container: dieContainer,
+      shadow: shadow,
+      body: body,
+      border: border,
+      dotsContainer: dotsContainer,
+      glow: glow
+    };
+  }
 
-    // Hold for a moment then callback
-    this.scene.time.delayedCall(800, function() {
-      self.rolling = false;
-      if (self.onComplete) {
-        self.onComplete(self.result);
-      }
-    });
-  },
+  // --- Draw dots for a given value ---
+  function drawDots(scene, die, value) {
+    die.dotsContainer.removeAll(true);
+    var positions = buildDotPositions();
+    var dots = positions[value] || positions[1];
 
-  hide: function() {
-    if (this.container) {
-      this.container.setVisible(false);
-    }
-  },
+    for (var i = 0; i < dots.length; i++) {
+      var px = dots[i].x;
+      var py = dots[i].y;
 
-  setPosition: function(x, y) {
-    if (this.container) {
-      this.container.setPosition(x, y);
+      // Dot shadow (slightly offset for depth)
+      var dotShadow = scene.add.graphics();
+      dotShadow.fillStyle(COL_DOT_SHADOW, 0.5);
+      dotShadow.fillCircle(px + DOT_SHADOW_OFFSET, py + DOT_SHADOW_OFFSET, DOT_RADIUS);
+      die.dotsContainer.add(dotShadow);
+
+      // Main dot
+      var dotMain = scene.add.graphics();
+      dotMain.fillStyle(COL_DOT, 1);
+      dotMain.fillCircle(px, py, DOT_RADIUS);
+      die.dotsContainer.add(dotMain);
+
+      // Tiny highlight on upper-left of dot
+      var dotHL = scene.add.graphics();
+      dotHL.fillStyle(COL_DOT_HIGHLIGHT, 0.7);
+      dotHL.fillCircle(px - 2, py - 2, DOT_HIGHLIGHT_RADIUS);
+      die.dotsContainer.add(dotHL);
     }
   }
-};
+
+  // --- The public manager object ---
+  var manager = {
+    scene: null,
+    container: null,
+    die1: null,
+    die2: null,
+    rolling: false,
+    result: null,
+    onComplete: null,
+    totalText: null,
+    totalBg: null,
+    totalContainer: null,
+
+    create: function(scene, x, y) {
+      this.scene = scene;
+      buildDotPositions();
+
+      this.container = scene.add.container(x, y);
+      this.container.setDepth(100);
+
+      // Create two dice, spaced apart
+      this.die1 = createDie(scene, -DIE_SPACING, 0);
+      this.die2 = createDie(scene, DIE_SPACING, 0);
+      this.container.add([this.die1.container, this.die2.container]);
+
+      // Total indicator container (positioned below dice)
+      this.totalContainer = scene.add.container(0, DIE_HALF + 32);
+
+      // Total background pill
+      this.totalBg = scene.add.graphics();
+      this.totalBg.fillStyle(COL_TOTAL_BG, 0.9);
+      this.totalBg.fillRoundedRect(-28, -14, 56, 28, 14);
+      this.totalBg.lineStyle(1.5, COL_TOTAL_BORDER, 0.8);
+      this.totalBg.strokeRoundedRect(-28, -14, 56, 28, 14);
+      this.totalContainer.add(this.totalBg);
+
+      // Total text
+      this.totalText = scene.add.text(0, 0, '', {
+        fontFamily: '"Fredoka One", sans-serif',
+        fontSize: '20px',
+        color: '#F5E6C8',
+        stroke: '#0A1628',
+        strokeThickness: 2
+      }).setOrigin(0.5);
+      this.totalContainer.add(this.totalText);
+
+      this.totalContainer.setAlpha(0);
+      this.totalContainer.setScale(0.5);
+      this.container.add(this.totalContainer);
+
+      // Start hidden
+      this.container.setVisible(false);
+      this.container.setAlpha(0);
+      this.container.setScale(0.5);
+    },
+
+    roll: function(d1, d2, callback) {
+      if (this.rolling) return;
+      this.rolling = true;
+      this.onComplete = callback;
+      this.result = { d1: d1, d2: d2, total: d1 + d2, isDoubles: d1 === d2 };
+
+      var self = this;
+      var scene = this.scene;
+
+      // Reset glow
+      this.die1.glow.setAlpha(0);
+      this.die2.glow.setAlpha(0);
+
+      // Hide total indicator
+      this.totalContainer.setAlpha(0);
+      this.totalContainer.setScale(0.5);
+
+      // Show container with scale+alpha entrance
+      this.container.setVisible(true);
+      this.container.setScale(0.5);
+      this.container.setAlpha(0);
+
+      scene.tweens.add({
+        targets: this.container,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 200,
+        ease: 'Back.easeOut'
+      });
+
+      // Play sound
+      AudioManager.diceRoll();
+
+      // Rolling animation using setInterval
+      var frames = 0;
+
+      var rollTimer = scene.time.addEvent({
+        delay: ROLL_INTERVAL,
+        repeat: ROLL_FRAMES - 1,
+        callback: function() {
+          var rv1 = Math.floor(Math.random() * 6) + 1;
+          var rv2 = Math.floor(Math.random() * 6) + 1;
+          drawDots(scene, self.die1, rv1);
+          drawDots(scene, self.die2, rv2);
+
+          // Dramatic rotation wobble (decreasing intensity)
+          var progress = frames / ROLL_FRAMES;
+          var intensity = (1 - progress) * 0.5;
+          self.die1.container.setRotation((Math.random() - 0.5) * intensity);
+          self.die2.container.setRotation((Math.random() - 0.5) * intensity);
+
+          // Scale pulse during roll
+          var pulse = 1 + Math.sin(frames * 1.2) * 0.08 * (1 - progress);
+          self.die1.container.setScale(pulse);
+          self.die2.container.setScale(pulse);
+
+          frames++;
+          if (frames >= ROLL_FRAMES) {
+            self.showResult();
+          }
+        }
+      });
+    },
+
+    showResult: function() {
+      var self = this;
+      var scene = this.scene;
+
+      // Draw final face values
+      drawDots(scene, this.die1, this.result.d1);
+      drawDots(scene, this.die2, this.result.d2);
+
+      // Reset rotation
+      this.die1.container.setRotation(0);
+      this.die2.container.setRotation(0);
+
+      // Satisfying bounce scale effect on each die
+      scene.tweens.add({
+        targets: this.die1.container,
+        scaleX: 1.25,
+        scaleY: 1.25,
+        duration: 120,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+        onComplete: function() {
+          self.die1.container.setScale(1);
+        }
+      });
+
+      scene.tweens.add({
+        targets: this.die2.container,
+        scaleX: 1.25,
+        scaleY: 1.25,
+        duration: 120,
+        delay: 40,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+        onComplete: function() {
+          self.die2.container.setScale(1);
+        }
+      });
+
+      // Doubles: glow effect + sound
+      if (this.result.isDoubles) {
+        AudioManager.doubles();
+
+        // Fade in glow on both dice
+        scene.tweens.add({
+          targets: this.die1.glow,
+          alpha: 1,
+          duration: 300,
+          ease: 'Sine.easeInOut',
+          yoyo: true,
+          repeat: 1,
+          hold: 200
+        });
+        scene.tweens.add({
+          targets: this.die2.glow,
+          alpha: 1,
+          duration: 300,
+          ease: 'Sine.easeInOut',
+          yoyo: true,
+          repeat: 1,
+          hold: 200
+        });
+      }
+
+      // Show total indicator below dice
+      this.totalText.setText('' + this.result.total);
+      scene.tweens.add({
+        targets: this.totalContainer,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 250,
+        delay: 180,
+        ease: 'Back.easeOut'
+      });
+
+      // Hold for a moment then callback
+      scene.time.delayedCall(RESULT_HOLD_MS, function() {
+        self.rolling = false;
+        if (self.onComplete) {
+          self.onComplete(self.result);
+        }
+      });
+    },
+
+    hide: function() {
+      if (!this.container) return;
+
+      var self = this;
+      var scene = this.scene;
+
+      // Smooth hide with scale+alpha
+      scene.tweens.add({
+        targets: this.container,
+        alpha: 0,
+        scaleX: 0.5,
+        scaleY: 0.5,
+        duration: 200,
+        ease: 'Quad.easeIn',
+        onComplete: function() {
+          self.container.setVisible(false);
+          // Reset glow and total for next roll
+          self.die1.glow.setAlpha(0);
+          self.die2.glow.setAlpha(0);
+          self.totalContainer.setAlpha(0);
+          self.totalContainer.setScale(0.5);
+        }
+      });
+    },
+
+    setPosition: function(x, y) {
+      if (this.container) {
+        this.container.setPosition(x, y);
+      }
+    }
+  };
+
+  return manager;
+})();

@@ -1,44 +1,63 @@
 // ============================================================
-// Riyadh Tycoon — Configuration & Game Data
+// RiyadhTowers — Configuration & Game Data
 // ============================================================
 
 var GAME_WIDTH = 1920;
 var GAME_HEIGHT = 1080;
 
+// Premium color palette
 var COLORS = {
   saudiGreen:    '#006C35',
   desertGold:    '#C8A951',
-  deepNavy:      '#0A1628',
+  deepNavy:      '#060E1A',
   warmSand:      '#F5E6C8',
-  cardBg:        '#1A2744',
-  cardBorder:    '#2A3F6B',
+  cardBg:        '#0F1B2E',
+  cardBgLight:   '#162340',
+  cardBorder:    '#1E3355',
+  panelBg:       '#0C1729',
   textPrimary:   '#F5E6C8',
-  textSecondary: '#8B9DC3',
+  textSecondary: '#7B93B8',
   accent:        '#E8B931',
+  accentLight:   '#F5D060',
   danger:        '#E74C3C',
   success:       '#27AE60',
   player1:       '#E74C3C',
   player2:       '#3498DB',
   player3:       '#F39C12',
   player4:       '#9B59B6',
+  gold1:         '#FFD700',
+  gold2:         '#C8A951',
+  gold3:         '#8B7332',
+  boardFelt:     '#0B1A2D',
+  boardBorder:   '#8B7332',
+  shadow:        '#040810',
 };
 
 var COLORS_INT = {
   saudiGreen:    0x006C35,
   desertGold:    0xC8A951,
-  deepNavy:      0x0A1628,
+  deepNavy:      0x060E1A,
   warmSand:      0xF5E6C8,
-  cardBg:        0x1A2744,
-  cardBorder:    0x2A3F6B,
+  cardBg:        0x0F1B2E,
+  cardBgLight:   0x162340,
+  cardBorder:    0x1E3355,
+  panelBg:       0x0C1729,
   textPrimary:   0xF5E6C8,
-  textSecondary: 0x8B9DC3,
+  textSecondary: 0x7B93B8,
   accent:        0xE8B931,
+  accentLight:   0xF5D060,
   danger:        0xE74C3C,
   success:       0x27AE60,
   player1:       0xE74C3C,
   player2:       0x3498DB,
   player3:       0xF39C12,
   player4:       0x9B59B6,
+  gold1:         0xFFD700,
+  gold2:         0xC8A951,
+  gold3:         0x8B7332,
+  boardFelt:     0x0B1A2D,
+  boardBorder:   0x8B7332,
+  shadow:        0x040810,
 };
 
 var PLAYER_COLORS = [0xE74C3C, 0x3498DB, 0xF39C12, 0x9B59B6];
@@ -179,4 +198,33 @@ function shuffleArray(arr) {
 function hexToInt(hex) {
   if (typeof hex === 'number') return hex;
   return parseInt(hex.replace('#', ''), 16);
+}
+
+function lightenColor(color, factor) {
+  var r = (color >> 16) & 0xFF;
+  var g = (color >> 8) & 0xFF;
+  var b = color & 0xFF;
+  r = Math.min(255, Math.floor(r + (255 - r) * factor));
+  g = Math.min(255, Math.floor(g + (255 - g) * factor));
+  b = Math.min(255, Math.floor(b + (255 - b) * factor));
+  return (r << 16) | (g << 8) | b;
+}
+
+function darkenColor(color, factor) {
+  var r = (color >> 16) & 0xFF;
+  var g = (color >> 8) & 0xFF;
+  var b = color & 0xFF;
+  r = Math.floor(r * (1 - factor));
+  g = Math.floor(g * (1 - factor));
+  b = Math.floor(b * (1 - factor));
+  return (r << 16) | (g << 8) | b;
+}
+
+function blendColors(c1, c2, t) {
+  var r1 = (c1 >> 16) & 0xFF, g1 = (c1 >> 8) & 0xFF, b1 = c1 & 0xFF;
+  var r2 = (c2 >> 16) & 0xFF, g2 = (c2 >> 8) & 0xFF, b2 = c2 & 0xFF;
+  var r = Math.floor(r1 + (r2 - r1) * t);
+  var g = Math.floor(g1 + (g2 - g1) * t);
+  var b = Math.floor(b1 + (b2 - b1) * t);
+  return (r << 16) | (g << 8) | b;
 }

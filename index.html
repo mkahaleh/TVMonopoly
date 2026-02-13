@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, user-scalable=no">
-  <meta name="description" content="Riyadh Tycoon - A Monopoly-style board game set in Riyadh">
-  <title>ريادة الرياض | Riyadh Tycoon</title>
+  <meta name="description" content="RiyadhTowers - A premium Monopoly-style board game set in Riyadh">
+  <title>أبراج الرياض | RiyadhTowers</title>
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
@@ -70,11 +70,11 @@
     (function() {
       function startGame() {
         var config = {
-          type: Phaser.AUTO,
+          type: Phaser.WEBGL,
           width: GAME_WIDTH,
           height: GAME_HEIGHT,
           parent: 'game-container',
-          backgroundColor: '#0A1628',
+          backgroundColor: '#060E1A',
           scale: {
             mode: Phaser.Scale.FIT,
             autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -94,6 +94,9 @@
             antialias: true,
             pixelArt: false,
             transparent: false,
+            powerPreference: 'high-performance',
+            batchSize: 4096,
+            maxLights: 10,
           },
           input: {
             keyboard: true,

@@ -1,5 +1,5 @@
 // ============================================================
-// Riyadh Tycoon — Player Setup Scene
+// RiyadhTowers — Player Setup Scene (Polished)
 // ============================================================
 
 var PlayerSetupScene = new Phaser.Class({
@@ -16,54 +16,68 @@ var PlayerSetupScene = new Phaser.Class({
     this.cameras.main.setBackgroundColor(COLORS_INT.deepNavy);
     this.cameras.main.fadeIn(500);
 
-    // Islamic pattern background
-    this.drawPattern();
-
     // Phase tracking
-    this.setupPhase = 'count'; // count, tokens, names, ready
+    this.setupPhase = 'count'; // count | tokens | ready
     this.playerCount = 2;
     this.selectedTokens = [];
     this.playerNames = [];
     this.currentSetupPlayer = 0;
+    this.defaultNames = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
 
-    // Default names
-    this.defaultNames = ['لاعب ١', 'لاعب ٢', 'لاعب ٣', 'لاعب ٤'];
-    this.defaultNamesEn = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
+    // Draw static background
+    this.drawPattern();
 
-    // Title
-    this.add.text(w / 2, 50, 'إعداد اللعبة', {
+    // Decorative separator beneath title
+    var sep = this.add.graphics();
+    sep.lineStyle(2, COLORS_INT.desertGold, 0.35);
+    sep.lineBetween(w / 2 - 240, 130, w / 2 + 240, 130);
+    sep.setDepth(1);
+
+    // Title — Arabic
+    this.titleAr = this.add.text(w / 2, 52, '\u0625\u0639\u062F\u0627\u062F \u0627\u0644\u0644\u0639\u0628\u0629', {
       fontFamily: 'Tajawal, sans-serif',
       fontSize: '52px',
       fontStyle: 'bold',
-      color: COLORS.desertGold,
-    }).setOrigin(0.5);
+      color: COLORS.desertGold
+    }).setOrigin(0.5).setDepth(2);
 
-    this.add.text(w / 2, 105, 'Game Setup', {
+    // Title — English
+    this.titleEn = this.add.text(w / 2, 106, 'Game Setup', {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '28px',
-      color: COLORS.textSecondary,
-    }).setOrigin(0.5);
+      color: COLORS.textSecondary
+    }).setOrigin(0.5).setDepth(2);
 
-    // Content container
-    this.contentContainer = this.add.container(0, 0);
+    // Main content container — reused across phases
+    this.contentContainer = this.add.container(0, 0).setDepth(3);
 
-    // Setup input
+    // Instruction container — persistent at bottom
+    this.instrContainer = this.add.container(0, 0).setDepth(3);
+
+    // Setup input system
     InputManager.init(this);
     InputManager.clear();
     InputManager.setupKeyboard(this);
 
-    // Start with player count selection
+    // Launch first phase
     this.showPlayerCountSelection();
   },
 
+  // ===========================================================
+  // Islamic 8-pointed star pattern — gold on navy at low opacity
+  // ===========================================================
   drawPattern: function() {
     var g = this.add.graphics();
     g.setAlpha(0.04);
+    g.setDepth(0);
     var size = 80;
-    for (var x = 0; x < GAME_WIDTH; x += size) {
-      for (var y = 0; y < GAME_HEIGHT; y += size) {
-        var cx = x + size / 2;
-        var cy = y + size / 2;
+    var cols = Math.ceil(GAME_WIDTH / size);
+    var rows = Math.ceil(GAME_HEIGHT / size);
+
+    for (var col = 0; col < cols; col++) {
+      for (var row = 0; row < rows; row++) {
+        var cx = col * size + size / 2;
+        var cy = row * size + size / 2;
         var r = size * 0.35;
         g.lineStyle(1, 0xC8A951, 1);
         for (var i = 0; i < 8; i++) {
@@ -78,105 +92,253 @@ var PlayerSetupScene = new Phaser.Class({
     }
   },
 
-  showPlayerCountSelection: function() {
+  // ===========================================================
+  // Utility: set bilingual instruction text at bottom
+  // ===========================================================
+  setInstruction: function(arText, enText) {
+    this.instrContainer.removeAll(true);
     var w = GAME_WIDTH;
     var h = GAME_HEIGHT;
-    var self = this;
-    this.contentContainer.removeAll(true);
 
-    var label = this.add.text(w / 2, 200, 'عدد اللاعبين', {
+    var instrAr = this.add.text(w / 2, h - 75, arText, {
       fontFamily: 'Tajawal, sans-serif',
-      fontSize: '40px',
-      fontStyle: 'bold',
-      color: COLORS.warmSand,
+      fontSize: '26px',
+      color: COLORS.textSecondary
     }).setOrigin(0.5);
-    this.contentContainer.add(label);
+    this.instrContainer.add(instrAr);
 
-    var labelEn = this.add.text(w / 2, 245, 'Number of Players', {
+    var instrEn = this.add.text(w / 2, h - 42, enText, {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '24px',
+      fontSize: '18px',
       color: COLORS.textSecondary,
+      alpha: 0.6
     }).setOrigin(0.5);
-    this.contentContainer.add(labelEn);
+    this.instrContainer.add(instrEn);
+  },
 
-    // Player count options: 2, 3, 4
-    var options = [2, 3, 4];
-    var items = [];
-    var startX = w / 2 - 150;
+  // ===========================================================
+  // Smooth transition helper — fade out content, run callback, fade in
+  // ===========================================================
+  transitionTo: function(buildFn) {
+    var self = this;
+    var dur = 180;
 
-    for (var i = 0; i < options.length; i++) {
-      var btn = this.createButton(startX + i * 150, 380, 120, 120, options[i].toString(), '', COLORS_INT.cardBg, i);
-      this.contentContainer.add(btn.container);
-      items.push(btn);
-    }
+    // Fade out existing content
+    this.tweens.add({
+      targets: self.contentContainer,
+      alpha: 0,
+      duration: dur,
+      ease: 'Power2',
+      onComplete: function() {
+        self.contentContainer.removeAll(true);
+        self.contentContainer.setAlpha(1);
+        buildFn.call(self);
+      }
+    });
+  },
 
-    // Focus on current selection
-    var selectedIdx = this.playerCount - 2;
-    FocusManager.init(this, items, 'horizontal');
-    FocusManager.currentIndex = selectedIdx;
-    FocusManager.updateFocus();
+  // ===========================================================
+  // PHASE 1 — Player Count Selection (2 / 3 / 4)
+  // ===========================================================
+  showPlayerCountSelection: function() {
+    var self = this;
+    this.setupPhase = 'count';
 
-    InputManager.clear();
-    InputManager.setupKeyboard(this);
-    FocusManager.setupInput();
+    var build = function() {
+      var w = GAME_WIDTH;
+      var h = GAME_HEIGHT;
 
-    FocusManager.onSelect = function(idx) {
-      self.playerCount = options[idx];
-      self.showTokenSelection();
+      // Section heading
+      var headAr = self.add.text(w / 2, 195, '\u0639\u062F\u062F \u0627\u0644\u0644\u0627\u0639\u0628\u064A\u0646', {
+        fontFamily: 'Tajawal, sans-serif',
+        fontSize: '40px',
+        fontStyle: 'bold',
+        color: COLORS.warmSand
+      }).setOrigin(0.5);
+      self.contentContainer.add(headAr);
+
+      var headEn = self.add.text(w / 2, 244, 'Number of Players', {
+        fontFamily: '"Fredoka One", sans-serif',
+        fontSize: '24px',
+        color: COLORS.textSecondary
+      }).setOrigin(0.5);
+      self.contentContainer.add(headEn);
+
+      // Three large number cards
+      var options = [2, 3, 4];
+      var cardW = 160;
+      var cardH = 180;
+      var gap = 50;
+      var totalW = options.length * cardW + (options.length - 1) * gap;
+      var startX = w / 2 - totalW / 2 + cardW / 2;
+      var cy = 420;
+      var items = [];
+
+      for (var i = 0; i < options.length; i++) {
+        var px = startX + i * (cardW + gap);
+        var item = self.createCountCard(px, cy, cardW, cardH, options[i]);
+        self.contentContainer.add(item.container);
+        items.push(item);
+      }
+
+      // Descriptive sub-labels (Arabic player word)
+      var descrAr = ['\u0644\u0627\u0639\u0628\u0627\u0646', '\u0644\u0627\u0639\u0628\u064A\u0646', '\u0644\u0627\u0639\u0628\u064A\u0646']; // dual/plural
+      for (var j = 0; j < options.length; j++) {
+        var dx = startX + j * (cardW + gap);
+        var descr = self.add.text(dx, cy + cardH / 2 + 24, descrAr[j], {
+          fontFamily: 'Tajawal, sans-serif',
+          fontSize: '22px',
+          color: COLORS.textSecondary,
+          alpha: 0.7
+        }).setOrigin(0.5);
+        self.contentContainer.add(descr);
+      }
+
+      // Focus & input
+      var selectedIdx = self.playerCount - 2;
+      FocusManager.init(self, items, 'horizontal');
+      FocusManager.currentIndex = selectedIdx;
+      FocusManager.updateFocus();
+
+      InputManager.clear();
+      InputManager.setupKeyboard(self);
+      FocusManager.setupInput();
+
+      FocusManager.onSelect = function(idx) {
+        self.playerCount = options[idx];
+        self.selectedTokens = [];
+        self.currentSetupPlayer = 0;
+        self.transitionTo(function() { self.buildTokenSelection(0); });
+      };
+
+      self.setInstruction(
+        '\u25C4 \u25BA \u0627\u062E\u062A\u0631 \u0627\u0644\u0639\u062F\u062F \u062B\u0645 \u0627\u0636\u063A\u0637 Enter',
+        'Select count with \u25C4 \u25BA then press Enter'
+      );
     };
 
-    // Instruction
-    var instr = this.add.text(w / 2, h - 80, '◄ ► اختر العدد ثم اضغط Enter', {
-      fontFamily: 'Tajawal, sans-serif',
-      fontSize: '28px',
-      color: COLORS.textSecondary,
-    }).setOrigin(0.5);
-    this.contentContainer.add(instr);
+    // First entry — build directly; subsequent — transition
+    if (this.contentContainer.length === 0) {
+      build();
+    } else {
+      this.transitionTo(build);
+    }
+  },
 
-    var instrEn = this.add.text(w / 2, h - 45, 'Select count with ◄ ► then press Enter', {
+  createCountCard: function(x, y, cw, ch, num) {
+    var container = this.add.container(x, y);
+
+    // Shadow
+    var shadow = this.add.graphics();
+    shadow.fillStyle(COLORS_INT.shadow, 0.5);
+    shadow.fillRoundedRect(-cw / 2 + 4, -ch / 2 + 4, cw, ch, 16);
+    container.add(shadow);
+
+    // Card background
+    var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.cardBg, 1);
+    bg.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+    container.add(bg);
+
+    // Gold border
+    var border = this.add.graphics();
+    border.lineStyle(2, COLORS_INT.desertGold, 0.5);
+    border.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+    container.add(border);
+
+    // Large number
+    var numText = this.add.text(0, -8, num.toString(), {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '20px',
-      color: COLORS.textSecondary,
-      alpha: 0.6,
-    }).setOrigin(0.5);
-    this.contentContainer.add(instrEn);
-  },
-
-  showTokenSelection: function() {
-    var w = GAME_WIDTH;
-    var h = GAME_HEIGHT;
-    var self = this;
-    this.contentContainer.removeAll(true);
-    this.selectedTokens = [];
-    this.currentSetupPlayer = 0;
-
-    this.showTokenForPlayer(0);
-  },
-
-  showTokenForPlayer: function(playerIdx) {
-    var w = GAME_WIDTH;
-    var h = GAME_HEIGHT;
-    var self = this;
-    this.contentContainer.removeAll(true);
-
-    var playerColor = PLAYER_COLOR_NAMES[playerIdx];
-
-    var label = this.add.text(w / 2, 200, 'اللاعب ' + (playerIdx + 1) + ' - اختر القطعة', {
-      fontFamily: 'Tajawal, sans-serif',
-      fontSize: '40px',
+      fontSize: '72px',
       fontStyle: 'bold',
-      color: playerColor,
+      color: COLORS.desertGold
     }).setOrigin(0.5);
-    this.contentContainer.add(label);
+    container.add(numText);
 
-    var labelEn = this.add.text(w / 2, 250, 'Player ' + (playerIdx + 1) + ' — Choose Token', {
+    // Focus glow ring
+    var glow = this.add.graphics();
+    glow.lineStyle(3, COLORS_INT.accent, 1);
+    glow.strokeRoundedRect(-cw / 2 - 4, -ch / 2 - 4, cw + 8, ch + 8, 18);
+    glow.setVisible(false);
+    container.add(glow);
+
+    // Outer shimmer
+    var shimmer = this.add.graphics();
+    shimmer.lineStyle(1, COLORS_INT.accentLight, 0.4);
+    shimmer.strokeRoundedRect(-cw / 2 - 8, -ch / 2 - 8, cw + 16, ch + 16, 20);
+    shimmer.setVisible(false);
+    container.add(shimmer);
+
+    return {
+      container: container,
+      glow: glow,
+      shimmer: shimmer,
+      numText: numText,
+      setFocused: function(focused) {
+        glow.setVisible(focused);
+        shimmer.setVisible(focused);
+        container.setScale(focused ? 1.08 : 1.0);
+        numText.setColor(focused ? COLORS.accent : COLORS.desertGold);
+      }
+    };
+  },
+
+  // ===========================================================
+  // PHASE 2 — Token Selection (per player)
+  // ===========================================================
+  buildTokenSelection: function(playerIdx) {
+    var w = GAME_WIDTH;
+    var h = GAME_HEIGHT;
+    var self = this;
+    this.setupPhase = 'tokens';
+    this.currentSetupPlayer = playerIdx;
+
+    var playerColor = PLAYER_COLORS[playerIdx];
+    var playerColorStr = PLAYER_COLOR_NAMES[playerIdx];
+
+    // Player indicator line
+    var indicator = this.add.graphics();
+    indicator.fillStyle(playerColor, 0.15);
+    indicator.fillRect(0, 160, w, 110);
+    this.contentContainer.add(indicator);
+
+    // Heading — which player is choosing
+    var headAr = this.add.text(w / 2, 190, '\u0627\u0644\u0644\u0627\u0639\u0628 ' + (playerIdx + 1) + ' \u2014 \u0627\u062E\u062A\u0631 \u0627\u0644\u0642\u0637\u0639\u0629', {
+      fontFamily: 'Tajawal, sans-serif',
+      fontSize: '38px',
+      fontStyle: 'bold',
+      color: playerColorStr
+    }).setOrigin(0.5);
+    this.contentContainer.add(headAr);
+
+    var headEn = this.add.text(w / 2, 237, 'Player ' + (playerIdx + 1) + ' \u2014 Choose Token', {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '24px',
-      color: COLORS.textSecondary,
+      fontSize: '22px',
+      color: COLORS.textSecondary
     }).setOrigin(0.5);
-    this.contentContainer.add(labelEn);
+    this.contentContainer.add(headEn);
 
-    var items = [];
+    // Step dots: show progress (filled dot per selected, hollow for remaining)
+    var dotY = 290;
+    var dotGap = 28;
+    var dotsStartX = w / 2 - ((self.playerCount - 1) * dotGap) / 2;
+    for (var d = 0; d < self.playerCount; d++) {
+      var dotG = this.add.graphics();
+      var dx = dotsStartX + d * dotGap;
+      if (d < playerIdx) {
+        dotG.fillStyle(PLAYER_COLORS[d], 1);
+        dotG.fillCircle(dx, dotY, 6);
+      } else if (d === playerIdx) {
+        dotG.fillStyle(playerColor, 1);
+        dotG.fillCircle(dx, dotY, 8);
+      } else {
+        dotG.lineStyle(2, COLORS_INT.cardBorder, 1);
+        dotG.strokeCircle(dx, dotY, 6);
+      }
+      this.contentContainer.add(dotG);
+    }
+
+    // Filter available tokens
     var availableTokens = [];
     for (var i = 0; i < TOKENS.length; i++) {
       var taken = false;
@@ -186,22 +348,30 @@ var PlayerSetupScene = new Phaser.Class({
       if (!taken) availableTokens.push(i);
     }
 
-    var totalWidth = availableTokens.length * 200;
-    var startX = w / 2 - totalWidth / 2 + 100;
+    // Token cards
+    var cardW = 160;
+    var cardH = 200;
+    var gap = 30;
+    var totalW = availableTokens.length * cardW + (availableTokens.length - 1) * gap;
+    var startX = w / 2 - totalW / 2 + cardW / 2;
+    var cy = 460;
+    var items = [];
 
     for (var k = 0; k < availableTokens.length; k++) {
       var tIdx = availableTokens[k];
       var token = TOKENS[tIdx];
-      var btn = this.createTokenButton(startX + k * 200, 430, token, tIdx);
-      this.contentContainer.add(btn.container);
-      items.push(btn);
+      var px = startX + k * (cardW + gap);
+      var item = self.createTokenCard(px, cy, cardW, cardH, token, playerColor);
+      self.contentContainer.add(item.container);
+      items.push(item);
     }
 
-    FocusManager.init(this, items, 'horizontal');
+    // Focus & input
+    FocusManager.init(self, items, 'horizontal');
     FocusManager.updateFocus();
 
     InputManager.clear();
-    InputManager.setupKeyboard(this);
+    InputManager.setupKeyboard(self);
     FocusManager.setupInput();
 
     FocusManager.onSelect = function(idx) {
@@ -209,64 +379,140 @@ var PlayerSetupScene = new Phaser.Class({
       self.selectedTokens.push(tokenId);
 
       if (self.selectedTokens.length < self.playerCount) {
-        self.showTokenForPlayer(self.selectedTokens.length);
+        self.transitionTo(function() {
+          self.buildTokenSelection(self.selectedTokens.length);
+        });
       } else {
-        self.showNameEntry();
+        // Assign default names and go to ready
+        self.playerNames = [];
+        for (var n = 0; n < self.playerCount; n++) {
+          self.playerNames.push(self.defaultNames[n]);
+        }
+        self.transitionTo(function() { self.buildReadyScreen(); });
       }
     };
 
+    // Back button logic
     InputManager.on('back', function() {
       if (self.selectedTokens.length > 0) {
         self.selectedTokens.pop();
-        self.showTokenForPlayer(self.selectedTokens.length);
+        self.transitionTo(function() {
+          self.buildTokenSelection(self.selectedTokens.length);
+        });
       } else {
-        self.showPlayerCountSelection();
+        self.transitionTo(function() {
+          self.contentContainer.removeAll(true);
+          self.showPlayerCountSelection();
+        });
       }
     });
 
-    // Instruction
-    var instr = this.add.text(w / 2, h - 60, '◄ ► اختر ثم Enter | Esc للرجوع', {
-      fontFamily: 'Tajawal, sans-serif',
-      fontSize: '28px',
-      color: COLORS.textSecondary,
+    self.setInstruction(
+      '\u25C4 \u25BA \u0627\u062E\u062A\u0631 \u062B\u0645 Enter  |  Esc \u0644\u0644\u0631\u062C\u0648\u0639',
+      'Select with \u25C4 \u25BA then Enter  |  Esc to go back'
+    );
+  },
+
+  createTokenCard: function(x, y, cw, ch, token, borderColor) {
+    var container = this.add.container(x, y);
+
+    // Shadow
+    var shadow = this.add.graphics();
+    shadow.fillStyle(COLORS_INT.shadow, 0.45);
+    shadow.fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw, ch, 14);
+    container.add(shadow);
+
+    // Card background
+    var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.cardBg, 1);
+    bg.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 14);
+    container.add(bg);
+
+    // Colored top accent bar
+    var accent = this.add.graphics();
+    accent.fillStyle(borderColor, 0.25);
+    accent.fillRoundedRect(-cw / 2, -ch / 2, cw, 6, { tl: 14, tr: 14, bl: 0, br: 0 });
+    container.add(accent);
+
+    // Border — player-colored
+    var border = this.add.graphics();
+    border.lineStyle(2, borderColor, 0.5);
+    border.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 14);
+    container.add(border);
+
+    // Emoji — large
+    var emoji = this.add.text(0, -35, token.emoji, {
+      fontSize: '56px'
     }).setOrigin(0.5);
-    this.contentContainer.add(instr);
+    container.add(emoji);
+
+    // Arabic name
+    var nameAr = this.add.text(0, 30, token.nameAr, {
+      fontFamily: 'Tajawal, sans-serif',
+      fontSize: '24px',
+      fontStyle: 'bold',
+      color: COLORS.warmSand
+    }).setOrigin(0.5);
+    container.add(nameAr);
+
+    // English name
+    var nameEn = this.add.text(0, 60, token.nameEn, {
+      fontFamily: '"Fredoka One", sans-serif',
+      fontSize: '16px',
+      color: COLORS.textSecondary
+    }).setOrigin(0.5);
+    container.add(nameEn);
+
+    // Focus glow
+    var glow = this.add.graphics();
+    glow.lineStyle(3, COLORS_INT.accent, 1);
+    glow.strokeRoundedRect(-cw / 2 - 4, -ch / 2 - 4, cw + 8, ch + 8, 16);
+    glow.setVisible(false);
+    container.add(glow);
+
+    return {
+      container: container,
+      glow: glow,
+      setFocused: function(focused) {
+        glow.setVisible(focused);
+        container.setScale(focused ? 1.07 : 1.0);
+        emoji.setScale(focused ? 1.15 : 1.0);
+      }
+    };
   },
 
-  showNameEntry: function() {
-    // Use default names and proceed
-    var self = this;
-    this.playerNames = [];
-    for (var i = 0; i < this.playerCount; i++) {
-      this.playerNames.push(this.defaultNamesEn[i]);
-    }
-    this.showReadyScreen();
-  },
-
-  showReadyScreen: function() {
+  // ===========================================================
+  // PHASE 3 — Ready Screen
+  // ===========================================================
+  buildReadyScreen: function() {
     var w = GAME_WIDTH;
     var h = GAME_HEIGHT;
     var self = this;
-    this.contentContainer.removeAll(true);
+    this.setupPhase = 'ready';
 
-    var label = this.add.text(w / 2, 180, 'مستعدون للعب!', {
+    // Heading
+    var headAr = this.add.text(w / 2, 185, '\u0645\u0633\u062A\u0639\u062F\u0648\u0646 \u0644\u0644\u0639\u0628!', {
       fontFamily: 'Tajawal, sans-serif',
       fontSize: '48px',
       fontStyle: 'bold',
-      color: COLORS.desertGold,
+      color: COLORS.desertGold
     }).setOrigin(0.5);
-    this.contentContainer.add(label);
+    this.contentContainer.add(headAr);
 
-    var labelEn = this.add.text(w / 2, 235, 'Ready to Play!', {
+    var headEn = this.add.text(w / 2, 240, 'Ready to Play!', {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '28px',
-      color: COLORS.textSecondary,
+      color: COLORS.textSecondary
     }).setOrigin(0.5);
-    this.contentContainer.add(labelEn);
+    this.contentContainer.add(headEn);
 
-    // Show player summary
-    var totalWidth = this.playerCount * 250;
-    var startX = w / 2 - totalWidth / 2 + 125;
+    // Player summary cards
+    var cardW = 200;
+    var cardH = 260;
+    var gap = 30;
+    var totalW = this.playerCount * cardW + (this.playerCount - 1) * gap;
+    var startX = w / 2 - totalW / 2 + cardW / 2;
+    var cy = 440;
 
     for (var i = 0; i < this.playerCount; i++) {
       var token = null;
@@ -274,47 +520,47 @@ var PlayerSetupScene = new Phaser.Class({
         if (TOKENS[j].id === this.selectedTokens[i]) { token = TOKENS[j]; break; }
       }
 
-      var py = 400;
-      var px = startX + i * 250;
+      var px = startX + i * (cardW + gap);
       var playerColor = PLAYER_COLORS[i];
+      var playerColorStr = PLAYER_COLOR_NAMES[i];
 
-      var card = this.add.graphics();
-      card.fillStyle(0x1A2744, 1);
-      card.fillRoundedRect(px - 90, py - 80, 180, 200, 12);
-      card.lineStyle(2, playerColor, 1);
-      card.strokeRoundedRect(px - 90, py - 80, 180, 200, 12);
+      var card = this.createPlayerSummaryCard(px, cy, cardW, cardH, {
+        name: this.playerNames[i],
+        token: token,
+        color: playerColor,
+        colorStr: playerColorStr,
+        index: i
+      });
       this.contentContainer.add(card);
 
-      var emoji = this.add.text(px, py - 30, token ? token.emoji : '?', {
-        fontSize: '52px',
-      }).setOrigin(0.5);
-      this.contentContainer.add(emoji);
-
-      var nameText = this.add.text(px, py + 40, this.playerNames[i], {
-        fontFamily: '"Fredoka One", sans-serif',
-        fontSize: '24px',
-        color: PLAYER_COLOR_NAMES[i],
-      }).setOrigin(0.5);
-      this.contentContainer.add(nameText);
-
-      var tokenNameText = this.add.text(px, py + 75, token ? token.nameAr : '', {
-        fontFamily: 'Tajawal, sans-serif',
-        fontSize: '22px',
-        color: COLORS.textSecondary,
-      }).setOrigin(0.5);
-      this.contentContainer.add(tokenNameText);
+      // Staggered entrance
+      card.setAlpha(0);
+      card.setScale(0.85);
+      this.tweens.add({
+        targets: card,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 350,
+        delay: i * 120,
+        ease: 'Back.easeOut'
+      });
     }
 
-    // Start button
-    var startBtn = this.createButton(w / 2, h - 140, 300, 60, 'ابدأ اللعب', 'Start Game', COLORS_INT.saudiGreen, 0);
+    // Start Game button
+    var btnW = 320;
+    var btnH = 64;
+    var btnY = h - 150;
+    var startBtn = this.createStartButton(w / 2, btnY, btnW, btnH);
     this.contentContainer.add(startBtn.container);
 
+    // Focus
     var items = [startBtn];
-    FocusManager.init(this, items, 'vertical');
+    FocusManager.init(self, items, 'vertical');
     FocusManager.updateFocus();
 
     InputManager.clear();
-    InputManager.setupKeyboard(this);
+    InputManager.setupKeyboard(self);
     FocusManager.setupInput();
 
     FocusManager.onSelect = function() {
@@ -322,114 +568,178 @@ var PlayerSetupScene = new Phaser.Class({
     };
 
     InputManager.on('back', function() {
-      self.showTokenSelection();
+      self.selectedTokens = [];
+      self.currentSetupPlayer = 0;
+      self.transitionTo(function() { self.buildTokenSelection(0); });
     });
+
+    self.setInstruction(
+      'Enter \u0644\u0628\u062F\u0621 \u0627\u0644\u0644\u0639\u0628  |  Esc \u0644\u0644\u0631\u062C\u0648\u0639',
+      'Press Enter to start  |  Esc to go back'
+    );
   },
 
+  createPlayerSummaryCard: function(x, y, cw, ch, data) {
+    var container = this.add.container(x, y);
+    var pc = data.color;
+    var pcStr = data.colorStr;
+
+    // Shadow
+    var shadow = this.add.graphics();
+    shadow.fillStyle(COLORS_INT.shadow, 0.5);
+    shadow.fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw, ch, 16);
+    container.add(shadow);
+
+    // Card BG with subtle gradient (darker at top, lighter at bottom)
+    var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.cardBgLight, 1);
+    bg.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+    container.add(bg);
+
+    // Top gradient overlay — player color at low opacity
+    var topGrad = this.add.graphics();
+    topGrad.fillStyle(pc, 0.12);
+    topGrad.fillRoundedRect(-cw / 2, -ch / 2, cw, 70, { tl: 16, tr: 16, bl: 0, br: 0 });
+    container.add(topGrad);
+
+    // Player color accent bar at very top
+    var accentBar = this.add.graphics();
+    accentBar.fillStyle(pc, 0.8);
+    accentBar.fillRoundedRect(-cw / 2, -ch / 2, cw, 5, { tl: 16, tr: 16, bl: 0, br: 0 });
+    container.add(accentBar);
+
+    // Border — player color
+    var border = this.add.graphics();
+    border.lineStyle(2, pc, 0.6);
+    border.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+    container.add(border);
+
+    // Emoji
+    var emoji = this.add.text(0, -55, data.token ? data.token.emoji : '?', {
+      fontSize: '52px'
+    }).setOrigin(0.5);
+    container.add(emoji);
+
+    // Player name
+    var nameText = this.add.text(0, 10, data.name, {
+      fontFamily: '"Fredoka One", sans-serif',
+      fontSize: '24px',
+      color: pcStr
+    }).setOrigin(0.5);
+    container.add(nameText);
+
+    // Token Arabic name
+    var tokenAr = this.add.text(0, 50, data.token ? data.token.nameAr : '', {
+      fontFamily: 'Tajawal, sans-serif',
+      fontSize: '22px',
+      fontStyle: 'bold',
+      color: COLORS.warmSand
+    }).setOrigin(0.5);
+    container.add(tokenAr);
+
+    // Token English name
+    var tokenEn = this.add.text(0, 78, data.token ? data.token.nameEn : '', {
+      fontFamily: '"Fredoka One", sans-serif',
+      fontSize: '16px',
+      color: COLORS.textSecondary
+    }).setOrigin(0.5);
+    container.add(tokenEn);
+
+    // Player number badge
+    var badge = this.add.graphics();
+    badge.fillStyle(pc, 0.9);
+    badge.fillCircle(cw / 2 - 6, -ch / 2 + 6, 16);
+    container.add(badge);
+
+    var badgeNum = this.add.text(cw / 2 - 6, -ch / 2 + 6, (data.index + 1).toString(), {
+      fontFamily: '"Fredoka One", sans-serif',
+      fontSize: '16px',
+      fontStyle: 'bold',
+      color: '#FFFFFF'
+    }).setOrigin(0.5);
+    container.add(badgeNum);
+
+    return container;
+  },
+
+  createStartButton: function(x, y, bw, bh) {
+    var container = this.add.container(x, y);
+
+    // Shadow
+    var shadow = this.add.graphics();
+    shadow.fillStyle(COLORS_INT.shadow, 0.5);
+    shadow.fillRoundedRect(-bw / 2 + 3, -bh / 2 + 3, bw, bh, 14);
+    container.add(shadow);
+
+    // Green background
+    var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.saudiGreen, 1);
+    bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 14);
+    container.add(bg);
+
+    // Lighter green top highlight
+    var highlight = this.add.graphics();
+    highlight.fillStyle(lightenColor(COLORS_INT.saudiGreen, 0.15), 0.4);
+    highlight.fillRoundedRect(-bw / 2, -bh / 2, bw, bh / 2, { tl: 14, tr: 14, bl: 0, br: 0 });
+    container.add(highlight);
+
+    // Subtle gold border
+    var border = this.add.graphics();
+    border.lineStyle(2, COLORS_INT.desertGold, 0.4);
+    border.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 14);
+    container.add(border);
+
+    // Arabic text
+    var labelAr = this.add.text(0, -11, '\u0627\u0628\u062F\u0623 \u0627\u0644\u0644\u0639\u0628', {
+      fontFamily: 'Tajawal, sans-serif',
+      fontSize: '30px',
+      fontStyle: 'bold',
+      color: '#FFFFFF'
+    }).setOrigin(0.5);
+    container.add(labelAr);
+
+    // English text
+    var labelEn = this.add.text(0, 18, 'Start Game', {
+      fontFamily: '"Fredoka One", sans-serif',
+      fontSize: '18px',
+      color: COLORS.warmSand
+    }).setOrigin(0.5);
+    container.add(labelEn);
+
+    // Focus glow
+    var glow = this.add.graphics();
+    glow.lineStyle(3, COLORS_INT.accent, 1);
+    glow.strokeRoundedRect(-bw / 2 - 4, -bh / 2 - 4, bw + 8, bh + 8, 16);
+    glow.setVisible(false);
+    container.add(glow);
+
+    return {
+      container: container,
+      glow: glow,
+      setFocused: function(focused) {
+        glow.setVisible(focused);
+        container.setScale(focused ? 1.06 : 1.0);
+      }
+    };
+  },
+
+  // ===========================================================
+  // Start the game — init state and transition to BoardScene
+  // ===========================================================
   startGame: function() {
     var self = this;
     AudioManager.menuConfirm();
 
+    // Disable further input
+    InputManager.clear();
+
     // Initialize game state
     GameState.init(this.playerNames, this.selectedTokens);
 
+    // Fade out and start board
     this.cameras.main.fadeOut(500, 10, 22, 40);
     this.time.delayedCall(500, function() {
       self.scene.start('BoardScene');
     });
-  },
-
-  createButton: function(x, y, bw, bh, textAr, textEn, bgColor, index) {
-    var container = this.add.container(x, y);
-
-    var bg = this.add.graphics();
-    bg.fillStyle(bgColor, 1);
-    bg.fillRoundedRect(-bw/2, -bh/2, bw, bh, 10);
-
-    var border = this.add.graphics();
-    border.lineStyle(2, 0xC8A951, 0.5);
-    border.strokeRoundedRect(-bw/2, -bh/2, bw, bh, 10);
-
-    container.add([bg, border]);
-
-    var label = this.add.text(0, textEn ? -12 : 0, textAr, {
-      fontFamily: 'Tajawal, sans-serif',
-      fontSize: '32px',
-      fontStyle: 'bold',
-      color: COLORS.warmSand,
-    }).setOrigin(0.5);
-    container.add(label);
-
-    if (textEn) {
-      var labelEn = this.add.text(0, 16, textEn, {
-        fontFamily: '"Fredoka One", sans-serif',
-        fontSize: '18px',
-        color: COLORS.textSecondary,
-      }).setOrigin(0.5);
-      container.add(labelEn);
-    }
-
-    // Glow for focus
-    var glow = this.add.graphics();
-    glow.lineStyle(3, 0xE8B931, 1);
-    glow.strokeRoundedRect(-bw/2 - 3, -bh/2 - 3, bw + 6, bh + 6, 12);
-    glow.setVisible(false);
-    container.add(glow);
-
-    return {
-      container: container,
-      glow: glow,
-      index: index,
-      setFocused: function(focused) {
-        glow.setVisible(focused);
-        container.setScale(focused ? 1.05 : 1.0);
-      }
-    };
-  },
-
-  createTokenButton: function(x, y, token, tokenIndex) {
-    var container = this.add.container(x, y);
-    var size = 140;
-
-    var bg = this.add.graphics();
-    bg.fillStyle(0x1A2744, 1);
-    bg.fillRoundedRect(-size/2, -size/2, size, size + 40, 12);
-    container.add(bg);
-
-    var emoji = this.add.text(0, -15, token.emoji, {
-      fontSize: '56px',
-    }).setOrigin(0.5);
-    container.add(emoji);
-
-    var nameAr = this.add.text(0, 45, token.nameAr, {
-      fontFamily: 'Tajawal, sans-serif',
-      fontSize: '22px',
-      fontStyle: 'bold',
-      color: COLORS.warmSand,
-    }).setOrigin(0.5);
-    container.add(nameAr);
-
-    var nameEn = this.add.text(0, 70, token.nameEn, {
-      fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '16px',
-      color: COLORS.textSecondary,
-    }).setOrigin(0.5);
-    container.add(nameEn);
-
-    var glow = this.add.graphics();
-    glow.lineStyle(3, 0xE8B931, 1);
-    glow.strokeRoundedRect(-size/2 - 3, -size/2 - 3, size + 6, size + 46, 14);
-    glow.setVisible(false);
-    container.add(glow);
-
-    return {
-      container: container,
-      glow: glow,
-      tokenIndex: tokenIndex,
-      setFocused: function(focused) {
-        glow.setVisible(focused);
-        container.setScale(focused ? 1.08 : 1.0);
-      }
-    };
   }
 });
