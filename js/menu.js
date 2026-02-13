@@ -570,31 +570,36 @@ var MenuScene = new Phaser.Class({
     var endY = h * 0.3 + Math.random() * (h * 0.4);
     var driftX = (Math.random() - 0.5) * 120;
     var riseDuration = 8000 + Math.random() * 6000;
+    var peakAlpha = 0.25 + Math.random() * 0.25;
 
     particle.setPosition(startX, startY);
     particle.setAlpha(0);
 
+    // Use a single chained tween with onComplete restart (non-recursive via delayedCall)
     self.time.delayedCall(startDelay, function() {
+      // Phase 1: rise and fade in
       self.tweens.add({
         targets: particle,
         y: endY,
         x: startX + driftX,
-        alpha: { from: 0, to: 0.25 + Math.random() * 0.25 },
+        alpha: { from: 0, to: peakAlpha },
         duration: riseDuration * 0.3,
         ease: 'Sine.easeOut',
+      });
+
+      // Phase 2: continue rising and fade out (delayed start)
+      self.tweens.add({
+        targets: particle,
+        y: endY - 80 - Math.random() * 60,
+        x: startX + driftX + (Math.random() - 0.5) * 40,
+        alpha: 0,
+        delay: riseDuration * 0.3,
+        duration: riseDuration * 0.7,
+        ease: 'Sine.easeIn',
         onComplete: function() {
-          // Fade out while continuing to rise
-          self.tweens.add({
-            targets: particle,
-            y: endY - 80 - Math.random() * 60,
-            x: startX + driftX + (Math.random() - 0.5) * 40,
-            alpha: 0,
-            duration: riseDuration * 0.7,
-            ease: 'Sine.easeIn',
-            onComplete: function() {
-              // Restart cycle
-              self.createDustTween(particle, w, h, 0);
-            }
+          // Use delayedCall to break recursion chain and allow GC
+          self.time.delayedCall(100, function() {
+            self.createDustTween(particle, w, h, 0);
           });
         }
       });
@@ -604,6 +609,12 @@ var MenuScene = new Phaser.Class({
   // ================================================================
   // UI — Title, ornaments, prompts, credits
   // ================================================================
+  shutdown: function() {
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    InputManager.clear();
+  },
+
   createUI: function(w, h) {
     var uiContainer = this.add.container(0, 0);
     uiContainer.setDepth(10);

@@ -416,29 +416,32 @@ var GameOverScene = new Phaser.Class({
   // 1. Islamic geometric star pattern — 8-pointed stars
   // ============================================================
   drawPattern: function() {
-    var g = this.add.graphics();
-    g.setAlpha(0.04);
-    g.setDepth(0);
-    var size = 140;
+    var size = 160;
     var r = size * 0.28;
+    var PI2 = Math.PI * 2;
+    var texKey = '_goPatternTile';
 
-    for (var x = 0; x < GAME_WIDTH; x += size) {
-      for (var y = 0; y < GAME_HEIGHT; y += size) {
-        var cx = x + size / 2;
-        var cy = y + size / 2;
-        g.lineStyle(1, 0xC8A951, 1);
-
-        // Draw 8-pointed star by connecting every 3rd vertex of an octagon
-        for (var i = 0; i < 8; i++) {
-          var a1 = (i / 8) * Math.PI * 2;
-          var a2 = ((i + 3) / 8) * Math.PI * 2;
-          g.lineBetween(
-            cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
-            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
-          );
-        }
+    if (!this.textures.exists(texKey)) {
+      var tileG = this.add.graphics();
+      tileG.lineStyle(1, 0xC8A951, 1);
+      var cx = size / 2;
+      var cy = size / 2;
+      for (var i = 0; i < 8; i++) {
+        var a1 = (i / 8) * PI2;
+        var a2 = ((i + 3) / 8) * PI2;
+        tileG.lineBetween(
+          cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
+          cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
+        );
       }
+      tileG.generateTexture(texKey, size, size);
+      tileG.destroy();
     }
+
+    var tile = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, texKey);
+    tile.setOrigin(0, 0);
+    tile.setAlpha(0.04);
+    tile.setDepth(0);
   },
 
   // ============================================================
@@ -574,6 +577,15 @@ var GameOverScene = new Phaser.Class({
   // ============================================================
   // Rankings — sort by bankrupt status then net worth descending
   // ============================================================
+  shutdown: function() {
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    InputManager.clear();
+    this.confettiPieces = [];
+    this.ambientParticles = [];
+    this.fireworkParticles = [];
+  },
+
   getRankings: function() {
     var players = GameState.players.slice();
     players.sort(function(a, b) {

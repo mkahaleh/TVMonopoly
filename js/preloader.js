@@ -155,19 +155,18 @@ var PreloaderScene = new Phaser.Class({
     var loadComplete = false;
 
     var timer = this.time.addEvent({
-      delay: 30,
+      delay: 25,
       callback: function() {
-        // Accelerate progress with a slight random jitter
-        progress += 0.012 + Math.random() * 0.02;
+        // Faster progress for quicker load screen
+        progress += 0.025 + Math.random() * 0.03;
         if (progress >= 1) {
           progress = 1;
           if (!loadComplete) {
             loadComplete = true;
             timer.remove();
-            self.time.delayedCall(500, function() {
-              // Fade out then transition
-              self.cameras.main.fadeOut(400, 6, 14, 26);
-              self.time.delayedCall(400, function() {
+            self.time.delayedCall(300, function() {
+              self.cameras.main.fadeOut(300, 6, 14, 26);
+              self.time.delayedCall(300, function() {
                 self.scene.start('MenuScene');
               });
             });
@@ -180,7 +179,7 @@ var PreloaderScene = new Phaser.Class({
     // ── Render loop for bar (throttled to ~20fps for TV) ──
     var lastPct = -1;
     this.time.addEvent({
-      delay: 50, // ~20fps is enough for a loading bar
+      delay: 80, // ~12fps is enough for a smooth loading bar
       callback: function() {
         displayProgress += (progress - displayProgress) * 0.15;
         if (progress >= 1 && displayProgress > 0.995) {
@@ -217,37 +216,37 @@ var PreloaderScene = new Phaser.Class({
   // Islamic Geometric Pattern — 8-pointed stars on 80px grid
   // Single graphics object, drawn once, animated via alpha tween
   // ================================================================
+  shutdown: function() {
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+  },
+
   drawIslamicPattern: function() {
-    var g = this.add.graphics();
-    g.setAlpha(0.05);
-    var w = GAME_WIDTH;
-    var h = GAME_HEIGHT;
-    var size = 120;
+    // Render a single star tile as a texture, then tile it via tileSprite (much fewer draw calls)
+    var size = 160;
     var r = size * 0.28;
     var PI2 = Math.PI * 2;
-
-    g.lineStyle(1, COLORS_INT.desertGold, 1);
-
-    for (var x = 0; x < w; x += size) {
-      for (var y = 0; y < h; y += size) {
-        var cx = x + size / 2;
-        var cy = y + size / 2;
-
-        // 8-pointed star: connect every 3rd vertex of an octagon
-        for (var i = 0; i < 8; i++) {
-          var a1 = (i / 8) * PI2;
-          var a2 = ((i + 3) / 8) * PI2;
-          g.lineBetween(
-            cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
-            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
-          );
-        }
-      }
+    var tileG = this.add.graphics();
+    tileG.lineStyle(1, COLORS_INT.desertGold, 1);
+    var cx = size / 2;
+    var cy = size / 2;
+    for (var i = 0; i < 8; i++) {
+      var a1 = (i / 8) * PI2;
+      var a2 = ((i + 3) / 8) * PI2;
+      tileG.lineBetween(
+        cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
+        cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
+      );
     }
+    tileG.generateTexture('_starTile', size, size);
+    tileG.destroy();
 
-    // Subtle breathing animation
+    var tile = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, '_starTile');
+    tile.setOrigin(0, 0);
+    tile.setAlpha(0.05);
+
     this.tweens.add({
-      targets: g,
+      targets: tile,
       alpha: 0.09,
       duration: 2500,
       yoyo: true,
@@ -255,7 +254,7 @@ var PreloaderScene = new Phaser.Class({
       ease: 'Sine.easeInOut'
     });
 
-    return g;
+    return tile;
   },
 
   // ================================================================
@@ -320,7 +319,7 @@ var PreloaderScene = new Phaser.Class({
   // ================================================================
   createAmbientParticles: function() {
     var self = this;
-    var count = 6;
+    var count = 4;
 
     for (var i = 0; i < count; i++) {
       var p = this.add.graphics();

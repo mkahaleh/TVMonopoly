@@ -67,29 +67,33 @@ var PlayerSetupScene = new Phaser.Class({
   // Islamic 8-pointed star pattern — gold on navy at low opacity
   // ===========================================================
   drawPattern: function() {
-    var g = this.add.graphics();
-    g.setAlpha(0.04);
-    g.setDepth(0);
-    var size = 140;
-    var cols = Math.ceil(GAME_WIDTH / size);
-    var rows = Math.ceil(GAME_HEIGHT / size);
+    var size = 160;
+    var r = size * 0.35;
+    var PI2 = Math.PI * 2;
+    var texKey = '_setupPatternTile';
 
-    for (var col = 0; col < cols; col++) {
-      for (var row = 0; row < rows; row++) {
-        var cx = col * size + size / 2;
-        var cy = row * size + size / 2;
-        var r = size * 0.35;
-        g.lineStyle(1, 0xC8A951, 1);
-        for (var i = 0; i < 8; i++) {
-          var a1 = (i / 8) * Math.PI * 2;
-          var a2 = ((i + 3) / 8) * Math.PI * 2;
-          g.lineBetween(
-            cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
-            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
-          );
-        }
+    // Only create tile texture once
+    if (!this.textures.exists(texKey)) {
+      var tileG = this.add.graphics();
+      tileG.lineStyle(1, 0xC8A951, 1);
+      var cx = size / 2;
+      var cy = size / 2;
+      for (var i = 0; i < 8; i++) {
+        var a1 = (i / 8) * PI2;
+        var a2 = ((i + 3) / 8) * PI2;
+        tileG.lineBetween(
+          cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
+          cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
+        );
       }
+      tileG.generateTexture(texKey, size, size);
+      tileG.destroy();
     }
+
+    var tile = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, texKey);
+    tile.setOrigin(0, 0);
+    tile.setAlpha(0.04);
+    tile.setDepth(0);
   },
 
   // ===========================================================
@@ -726,6 +730,12 @@ var PlayerSetupScene = new Phaser.Class({
   // ===========================================================
   // Start the game — init state and transition to BoardScene
   // ===========================================================
+  shutdown: function() {
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    InputManager.clear();
+  },
+
   startGame: function() {
     var self = this;
     AudioManager.menuConfirm();

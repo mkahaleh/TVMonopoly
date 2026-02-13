@@ -38,26 +38,41 @@ var AudioManager = {
     osc.stop(this.ctx.currentTime + duration);
   },
 
+  // Schedule a tone at a specific time offset using Web Audio timing (no setTimeout)
+  playToneAt: function(frequency, duration, type, volume, delaySeconds) {
+    if (!this.enabled || !this.ctx) return;
+    this.resume();
+    type = type || 'sine';
+    volume = (volume !== undefined ? volume : 1) * this.masterVolume;
+    var startTime = this.ctx.currentTime + (delaySeconds || 0);
+    var osc = this.ctx.createOscillator();
+    var gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(volume, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  },
+
   playNotes: function(notes, interval) {
     if (!this.enabled || !this.ctx) return;
     this.resume();
+    var intervalSec = (interval || 120) / 1000;
     for (var i = 0; i < notes.length; i++) {
-      (function(n, delay) {
-        setTimeout(function() {
-          AudioManager.playTone(n.freq, n.dur || 0.2, n.type || 'sine', n.vol || 0.5);
-        }, delay);
-      })(notes[i], i * (interval || 120));
+      var n = notes[i];
+      this.playToneAt(n.freq, n.dur || 0.2, n.type || 'sine', n.vol || 0.5, i * intervalSec);
     }
   },
 
-  // Sound effects
+  // Sound effects — all use Web Audio scheduling (no setTimeout leaks)
   diceRoll: function() {
+    if (!this.enabled || !this.ctx) return;
+    this.resume();
     for (var i = 0; i < 6; i++) {
-      (function(idx) {
-        setTimeout(function() {
-          AudioManager.playTone(200 + Math.random() * 400, 0.05, 'square', 0.3);
-        }, idx * 40);
-      })(i);
+      this.playToneAt(200 + Math.random() * 400, 0.05, 'square', 0.3, i * 0.04);
     }
   },
 
@@ -66,8 +81,8 @@ var AudioManager = {
   },
 
   tokenLand: function() {
-    this.playTone(400, 0.15, 'sine', 0.5);
-    setTimeout(function() { AudioManager.playTone(500, 0.1, 'sine', 0.3); }, 50);
+    this.playToneAt(400, 0.15, 'sine', 0.5, 0);
+    this.playToneAt(500, 0.1, 'sine', 0.3, 0.05);
   },
 
   buyProperty: function() {
@@ -135,8 +150,8 @@ var AudioManager = {
   },
 
   menuConfirm: function() {
-    this.playTone(800, 0.08, 'sine', 0.4);
-    setTimeout(function() { AudioManager.playTone(1000, 0.1, 'sine', 0.3); }, 60);
+    this.playToneAt(800, 0.08, 'sine', 0.4, 0);
+    this.playToneAt(1000, 0.1, 'sine', 0.3, 0.06);
   },
 
   navigate: function() {

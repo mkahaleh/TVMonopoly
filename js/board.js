@@ -126,23 +126,23 @@ var BoardScene = new Phaser.Class({
   // Premium Board Drawing
   // -------------------------------------------------------
   drawBackgroundPattern: function() {
-    // Simplified pattern - fewer draw calls for TV performance
-    var g = this.add.graphics();
-    g.setAlpha(0.02);
-    g.lineStyle(1, 0xC8A951, 1);
-    var size = 120; // larger grid = fewer cells
-    for (var x = 0; x < GAME_WIDTH; x += size) {
-      for (var y = 0; y < GAME_HEIGHT; y += size) {
-        var cx = x + size / 2;
-        var cy = y + size / 2;
-        var r = size * 0.25;
-        // Simple 4-pointed star (half the draw calls)
-        g.lineBetween(cx - r, cy, cx + r, cy);
-        g.lineBetween(cx, cy - r, cx, cy + r);
-        g.lineBetween(cx - r * 0.7, cy - r * 0.7, cx + r * 0.7, cy + r * 0.7);
-        g.lineBetween(cx + r * 0.7, cy - r * 0.7, cx - r * 0.7, cy + r * 0.7);
-      }
-    }
+    // Render single tile as texture, then use tileSprite (minimal draw calls)
+    var size = 160;
+    var r = size * 0.25;
+    var tileG = this.add.graphics();
+    tileG.lineStyle(1, 0xC8A951, 1);
+    var cx = size / 2;
+    var cy = size / 2;
+    tileG.lineBetween(cx - r, cy, cx + r, cy);
+    tileG.lineBetween(cx, cy - r, cx, cy + r);
+    tileG.lineBetween(cx - r * 0.7, cy - r * 0.7, cx + r * 0.7, cy + r * 0.7);
+    tileG.lineBetween(cx + r * 0.7, cy - r * 0.7, cx - r * 0.7, cy + r * 0.7);
+    tileG.generateTexture('_boardPatternTile', size, size);
+    tileG.destroy();
+
+    var tile = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, '_boardPatternTile');
+    tile.setOrigin(0, 0);
+    tile.setAlpha(0.02);
   },
 
   drawBoard: function() {
@@ -651,31 +651,62 @@ var BoardScene = new Phaser.Class({
       return;
     }
 
+    var offset = this.getTokenOffset(playerIndex, GameState.players.length);
+
+    // For short moves (<=6), animate each step with hop. For longer, batch intermediate steps.
+    var animSteps;
+    if (steps.length <= 6) {
+      animSteps = steps;
+    } else {
+      // Show first 2, skip middle (fast slide), then last 2 steps
+      animSteps = [steps[0], steps[1]];
+      animSteps.push({ batch: steps.slice(2, steps.length - 2) });
+      animSteps.push(steps[steps.length - 2]);
+      animSteps.push(steps[steps.length - 1]);
+    }
+
     var stepIdx = 0;
     var moveNext = function() {
-      if (stepIdx >= steps.length) {
+      if (stepIdx >= animSteps.length) {
         AudioManager.tokenLand();
         if (callback) callback();
         return;
       }
 
-      var target = steps[stepIdx];
-      var tPos = self.spacePositions[target];
-      var offset = self.getTokenOffset(playerIndex, GameState.players.length);
+      var step = animSteps[stepIdx];
 
+      // Batch step: slide directly to the end of the batch
+      if (step && step.batch) {
+        var lastInBatch = step.batch[step.batch.length - 1];
+        var bPos = self.spacePositions[lastInBatch];
+        self.tweens.add({
+          targets: token.container,
+          x: bPos.x + offset.x,
+          y: bPos.y + offset.y,
+          duration: Math.min(step.batch.length * 30, 400),
+          ease: 'Sine.easeInOut',
+          onComplete: function() {
+            stepIdx++;
+            moveNext();
+          }
+        });
+        return;
+      }
+
+      var tPos = self.spacePositions[step];
       AudioManager.tokenMove();
 
       self.tweens.add({
         targets: token.container,
         x: tPos.x + offset.x,
         y: tPos.y + offset.y - 8,
-        duration: 80,
+        duration: 70,
         ease: 'Quad.easeOut',
         onComplete: function() {
           self.tweens.add({
             targets: token.container,
             y: tPos.y + offset.y,
-            duration: 60,
+            duration: 50,
             ease: 'Bounce.easeOut',
             onComplete: function() {
               stepIdx++;
@@ -855,48 +886,58 @@ var BoardScene = new Phaser.Class({
       var panel = this.playerPanels[i];
       var player = GameState.players[i];
 
-      panel.moneyText.setText('SAR ' + player.money);
-      if (player.money < 0) {
-        panel.moneyText.setColor(COLORS.danger);
-      } else {
-        panel.moneyText.setColor(COLORS.desertGold);
+      // Only update text when values actually changed
+      var moneyStr = 'SAR ' + player.money;
+      if (panel._lastMoney !== moneyStr) {
+        panel._lastMoney = moneyStr;
+        panel.moneyText.setText(moneyStr);
+        panel.moneyText.setColor(player.money < 0 ? COLORS.danger : COLORS.desertGold);
       }
 
-      panel.propsText.setText(player.properties.length + ' properties');
+      var propsCount = player.properties.length;
+      if (panel._lastPropsCount !== propsCount) {
+        panel._lastPropsCount = propsCount;
+        panel.propsText.setText(propsCount + ' properties');
+      }
 
       var worth = GameState.getPlayerNetWorth(player);
-      panel.worthText.setText('Net: ' + worth + ' SAR');
+      if (panel._lastWorth !== worth) {
+        panel._lastWorth = worth;
+        panel.worthText.setText('Net: ' + worth + ' SAR');
+      }
 
       // Active player glow
       var isActive = (i === GameState.currentPlayerIndex && !player.bankrupt);
       panel.glow.setVisible(isActive);
 
-      // Show glow ring on active player's token
       if (this.tokenSprites[i] && this.tokenSprites[i].glowRing) {
         this.tokenSprites[i].glowRing.setVisible(isActive);
       }
 
-      // Bankrupt visual
       if (player.bankrupt) {
         panel.container.setAlpha(0.3);
       }
 
-      // Update property color dots
-      panel.dotsContainer.removeAll(true);
-      var dotX = 0;
-      var shownColors = {};
-      for (var j = 0; j < player.properties.length; j++) {
-        var si = player.properties[j];
-        var space = BOARD[si];
-        if (space.colorInt && !shownColors[space.color]) {
-          shownColors[space.color] = true;
-          var dot = this.add.graphics();
-          dot.fillStyle(space.colorInt, 1);
-          dot.fillCircle(dotX, 0, 5);
-          dot.lineStyle(1, 0xFFFFFF, 0.3);
-          dot.strokeCircle(dotX, 0, 5);
-          panel.dotsContainer.add(dot);
-          dotX -= 14;
+      // Only rebuild color dots when property list changes
+      var propsKey = player.properties.join(',');
+      if (panel._lastPropsKey !== propsKey) {
+        panel._lastPropsKey = propsKey;
+        panel.dotsContainer.removeAll(true);
+        var dotX = 0;
+        var shownColors = {};
+        for (var j = 0; j < player.properties.length; j++) {
+          var si = player.properties[j];
+          var space = BOARD[si];
+          if (space.colorInt && !shownColors[space.color]) {
+            shownColors[space.color] = true;
+            var dot = this.add.graphics();
+            dot.fillStyle(space.colorInt, 1);
+            dot.fillCircle(dotX, 0, 5);
+            dot.lineStyle(1, 0xFFFFFF, 0.3);
+            dot.strokeCircle(dotX, 0, 5);
+            panel.dotsContainer.add(dot);
+            dotX -= 14;
+          }
         }
       }
     }
@@ -906,21 +947,33 @@ var BoardScene = new Phaser.Class({
   // Premium Ownership Markers
   // -------------------------------------------------------
   updateBoardOwnership: function() {
-    if (this.ownershipMarkers) {
-      for (var i = 0; i < this.ownershipMarkers.length; i++) {
-        this.ownershipMarkers[i].destroy();
-      }
+    // Initialize marker cache on first call
+    if (!this.ownershipMarkers) {
+      this.ownershipMarkers = {};
+      this._ownershipSnapshot = {};
     }
-    this.ownershipMarkers = [];
 
     for (var j = 0; j < 40; j++) {
       var pd = GameState.properties[j];
+      // Build a snapshot key to detect changes: "owner:houses:hotel:mortgaged"
+      var newKey = pd.owner + ':' + (pd.houses || 0) + ':' + (pd.hotel ? 1 : 0) + ':' + (pd.mortgaged ? 1 : 0);
+      var oldKey = this._ownershipSnapshot[j];
+
+      // Skip if unchanged
+      if (newKey === oldKey) continue;
+      this._ownershipSnapshot[j] = newKey;
+
+      // Destroy old marker for this space if it exists
+      if (this.ownershipMarkers[j]) {
+        this.ownershipMarkers[j].destroy();
+        delete this.ownershipMarkers[j];
+      }
+
       if (pd.owner >= 0) {
         var pos = this.spacePositions[j];
         var player = GameState.players[pd.owner];
 
         var marker = this.add.graphics();
-        // Ownership ring instead of dot
         marker.lineStyle(2, player.color, 0.8);
 
         if (pos.side === 'bottom') {
@@ -941,14 +994,12 @@ var BoardScene = new Phaser.Class({
           marker.fillCircle(pos.x + pos.w / 2 - 6, pos.y, 3);
         }
 
-        // Hotel indicator - red with highlight
         if (pd.hotel) {
           marker.fillStyle(0xFF0000, 1);
           marker.fillRect(pos.x - 5, pos.y - (pos.side === 'bottom' ? pos.h / 2 + 2 : -pos.h / 2 - 8), 10, 6);
           marker.fillStyle(0xFFFFFF, 0.25);
           marker.fillRect(pos.x - 5, pos.y - (pos.side === 'bottom' ? pos.h / 2 + 2 : -pos.h / 2 - 8), 10, 2);
         } else if (pd.houses > 0) {
-          // House indicators - green with highlight
           for (var k = 0; k < pd.houses; k++) {
             marker.fillStyle(0x00AA00, 1);
             var hx = pos.x - 10 + k * 7;
@@ -960,7 +1011,7 @@ var BoardScene = new Phaser.Class({
         }
 
         marker.setDepth(30);
-        this.ownershipMarkers.push(marker);
+        this.ownershipMarkers[j] = marker;
       }
     }
   },
@@ -1912,17 +1963,22 @@ var BoardScene = new Phaser.Class({
   // -------------------------------------------------------
   // Premium Message Display
   // -------------------------------------------------------
-  showMessage: function(textAr, textEn, color) {
-    this.messageContainer.removeAll(true);
-    color = color || COLORS.warmSand;
+  // Create persistent message elements once, then just update text/position
+  _ensureMessageElements: function() {
+    if (this._msgBuilt) return;
+    this._msgBuilt = true;
 
     var w = 500;
     var h = 80;
     var x = this.boardX + this.boardSize / 2 - w / 2;
-    var y = -h; // start above screen
 
-    var msgContainer = this.add.container(x, y);
+    this._msgW = w;
+    this._msgH = h;
+    this._msgX = x;
+
+    var msgContainer = this.add.container(x, -h);
     this.messageContainer.add(msgContainer);
+    this._msgInner = msgContainer;
 
     // Shadow
     var shadow = this.add.graphics();
@@ -1930,35 +1986,55 @@ var BoardScene = new Phaser.Class({
     shadow.fillRoundedRect(3, 3, w, h, 10);
     msgContainer.add(shadow);
 
-    // Background with gradient feel
-    var bg = this.add.graphics();
-    bg.fillStyle(0x060E1A, 0.95);
-    bg.fillRoundedRect(0, 0, w, h, 10);
-    bg.fillStyle(0x0F1B2E, 0.4);
-    bg.fillRoundedRect(0, 0, w, h / 2, { tl: 10, tr: 10, bl: 0, br: 0 });
-    // Color accent line on left
-    bg.fillStyle(hexToInt(color), 0.8);
-    bg.fillRoundedRect(0, 5, 4, h - 10, 2);
-    bg.lineStyle(2, hexToInt(color), 0.5);
-    bg.strokeRoundedRect(0, 0, w, h, 10);
-    msgContainer.add(bg);
+    // Background (will be redrawn for color accent)
+    this._msgBg = this.add.graphics();
+    msgContainer.add(this._msgBg);
 
-    var msgAr = this.add.text(w / 2, 22, textAr, {
+    this._msgArText = this.add.text(w / 2, 22, '', {
       fontFamily: 'Tajawal, sans-serif',
       fontSize: '24px',
       fontStyle: 'bold',
-      color: color,
+      color: COLORS.warmSand,
     }).setOrigin(0.5);
-    msgContainer.add(msgAr);
+    msgContainer.add(this._msgArText);
 
-    var msgEn = this.add.text(w / 2, 52, textEn, {
+    this._msgEnText = this.add.text(w / 2, 52, '', {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '16px',
       color: COLORS.textSecondary,
     }).setOrigin(0.5);
-    msgContainer.add(msgEn);
+    msgContainer.add(this._msgEnText);
+  },
 
-    // Slide in from top
+  showMessage: function(textAr, textEn, color) {
+    color = color || COLORS.warmSand;
+    this._ensureMessageElements();
+
+    var w = this._msgW;
+    var h = this._msgH;
+    var msgContainer = this._msgInner;
+
+    // Kill any existing message tweens
+    this.tweens.killTweensOf(msgContainer);
+
+    // Update text content
+    this._msgArText.setText(textAr).setColor(color);
+    this._msgEnText.setText(textEn);
+
+    // Redraw background with new accent color
+    var colorInt = hexToInt(color);
+    this._msgBg.clear();
+    this._msgBg.fillStyle(0x060E1A, 0.95);
+    this._msgBg.fillRoundedRect(0, 0, w, h, 10);
+    this._msgBg.fillStyle(0x0F1B2E, 0.4);
+    this._msgBg.fillRoundedRect(0, 0, w, h / 2, { tl: 10, tr: 10, bl: 0, br: 0 });
+    this._msgBg.fillStyle(colorInt, 0.8);
+    this._msgBg.fillRoundedRect(0, 5, 4, h - 10, 2);
+    this._msgBg.lineStyle(2, colorInt, 0.5);
+    this._msgBg.strokeRoundedRect(0, 0, w, h, 10);
+
+    // Reset position and slide in
+    msgContainer.y = -h;
     var self = this;
     this.tweens.add({
       targets: msgContainer,
@@ -1967,21 +2043,24 @@ var BoardScene = new Phaser.Class({
       ease: 'Back.easeOut',
     });
 
-    // Auto-hide with slide out
+    // Auto-hide
     this.time.delayedCall(2500, function() {
       self.tweens.add({
         targets: msgContainer,
         y: -h - 10,
         duration: 250,
         ease: 'Quad.easeIn',
-        onComplete: function() {
-          self.messageContainer.removeAll(true);
-        }
       });
     });
   },
 
   clearAction: function() {
     this.actionContainer.removeAll(true);
+  },
+
+  shutdown: function() {
+    this.tweens.killAll();
+    this.time.removeAllEvents();
+    InputManager.clear();
   },
 });

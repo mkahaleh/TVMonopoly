@@ -129,33 +129,44 @@ var DiceManager = (function() {
     };
   }
 
-  // --- Draw dots for a given value (single graphics object for performance) ---
-  function drawDots(scene, die, value) {
-    // Use a single reusable graphics object instead of creating per-dot objects
-    if (!die.dotsGraphics) {
-      die.dotsGraphics = scene.add.graphics();
-      die.dotsContainer.add(die.dotsGraphics);
-    }
-    die.dotsGraphics.clear();
+  // --- Pre-rendered dot textures for each face value (1-6) ---
+  var DOT_TEXTURES_BUILT = false;
+
+  function buildDotTextures(scene) {
+    if (DOT_TEXTURES_BUILT) return;
+    DOT_TEXTURES_BUILT = true;
 
     var positions = buildDotPositions();
-    var dots = positions[value] || positions[1];
+    for (var val = 1; val <= 6; val++) {
+      var texKey = '_diceDots' + val;
+      var g = scene.add.graphics();
+      var dots = positions[val];
 
-    for (var i = 0; i < dots.length; i++) {
-      var px = dots[i].x;
-      var py = dots[i].y;
+      for (var i = 0; i < dots.length; i++) {
+        var px = dots[i].x + DIE_HALF;
+        var py = dots[i].y + DIE_HALF;
+        g.fillStyle(COL_DOT_SHADOW, 0.5);
+        g.fillCircle(px + DOT_SHADOW_OFFSET, py + DOT_SHADOW_OFFSET, DOT_RADIUS);
+        g.fillStyle(COL_DOT, 1);
+        g.fillCircle(px, py, DOT_RADIUS);
+        g.fillStyle(COL_DOT_HIGHLIGHT, 0.7);
+        g.fillCircle(px - 2, py - 2, DOT_HIGHLIGHT_RADIUS);
+      }
 
-      // Dot shadow
-      die.dotsGraphics.fillStyle(COL_DOT_SHADOW, 0.5);
-      die.dotsGraphics.fillCircle(px + DOT_SHADOW_OFFSET, py + DOT_SHADOW_OFFSET, DOT_RADIUS);
+      g.generateTexture(texKey, DIE_SIZE, DIE_SIZE);
+      g.destroy();
+    }
+  }
 
-      // Main dot
-      die.dotsGraphics.fillStyle(COL_DOT, 1);
-      die.dotsGraphics.fillCircle(px, py, DOT_RADIUS);
+  // --- Draw dots using pre-rendered textures (no graphics.clear() per frame) ---
+  function drawDots(scene, die, value) {
+    var texKey = '_diceDots' + value;
 
-      // Highlight
-      die.dotsGraphics.fillStyle(COL_DOT_HIGHLIGHT, 0.7);
-      die.dotsGraphics.fillCircle(px - 2, py - 2, DOT_HIGHLIGHT_RADIUS);
+    if (!die.dotsImage) {
+      die.dotsImage = scene.add.image(0, 0, texKey);
+      die.dotsContainer.add(die.dotsImage);
+    } else {
+      die.dotsImage.setTexture(texKey);
     }
   }
 
@@ -175,6 +186,7 @@ var DiceManager = (function() {
     create: function(scene, x, y) {
       this.scene = scene;
       buildDotPositions();
+      buildDotTextures(scene);
 
       this.container = scene.add.container(x, y);
       this.container.setDepth(100);

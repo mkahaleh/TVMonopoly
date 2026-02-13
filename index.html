@@ -6,7 +6,9 @@
   <meta name="description" content="RiyadhTowers - A premium Monopoly-style board game set in Riyadh">
   <title>أبراج الرياض | RiyadhTowers</title>
 
-  <!-- Fonts -->
+  <!-- Fonts — preconnect for faster DNS/TLS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
 
   <style>
@@ -127,13 +129,11 @@
         }
       }
 
-      // Start after a brief delay to allow font loading
+      // Start as soon as fonts are ready (no artificial delays)
       if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(function() {
-          setTimeout(startGame, 100);
-        });
+        document.fonts.ready.then(startGame);
       } else {
-        setTimeout(startGame, 500);
+        setTimeout(startGame, 200);
       }
     })();
   </script>
