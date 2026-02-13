@@ -14,9 +14,9 @@ var GameOverScene = new Phaser.Class({
     this.fireworkParticles = [];
     this.confettiPieces = [];
     this.ambientParticles = [];
-    this.maxFireworkParticles = 128;
-    this.maxConfetti = 20;
-    this.maxAmbient = 15;
+    this.maxFireworkParticles = 32;
+    this.maxConfetti = 10;
+    this.maxAmbient = 6;
   },
 
   create: function() {
@@ -43,7 +43,7 @@ var GameOverScene = new Phaser.Class({
     this.createFireworkPool();
     this.launchFirework();
     this.time.addEvent({
-      delay: 800,
+      delay: 1500,
       callback: function() { self.launchFirework(); },
       loop: true
     });
@@ -419,8 +419,8 @@ var GameOverScene = new Phaser.Class({
     var g = this.add.graphics();
     g.setAlpha(0.04);
     g.setDepth(0);
-    var size = 80;
-    var r = size * 0.35;
+    var size = 140;
+    var r = size * 0.28;
 
     for (var x = 0; x < GAME_WIDTH; x += size) {
       for (var y = 0; y < GAME_HEIGHT; y += size) {
@@ -472,7 +472,7 @@ var GameOverScene = new Phaser.Class({
     var by = 80 + Math.random() * (GAME_HEIGHT * 0.35);
     var colors = [0xE74C3C, 0x3498DB, 0xF39C12, 0x9B59B6, 0xE8B931, 0x27AE60, 0xFF69B4, 0xFFD700];
     var color = colors[Math.floor(Math.random() * colors.length)];
-    var particleCount = 16;
+    var particleCount = 8;
 
     for (var i = 0; i < particleCount; i++) {
       var p = this.getFireworkParticle();

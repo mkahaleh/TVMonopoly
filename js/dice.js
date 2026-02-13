@@ -28,8 +28,8 @@ var DiceManager = (function() {
   var COL_TOTAL_BORDER = 0xC8A951;
 
   // Roll animation
-  var ROLL_FRAMES = 14;
-  var ROLL_INTERVAL = 75;
+  var ROLL_FRAMES = 8;
+  var ROLL_INTERVAL = 80;
   var RESULT_HOLD_MS = 900;
 
   // --- Cached dot position lookup (value -> [{x,y}]) ---
@@ -129,9 +129,15 @@ var DiceManager = (function() {
     };
   }
 
-  // --- Draw dots for a given value ---
+  // --- Draw dots for a given value (single graphics object for performance) ---
   function drawDots(scene, die, value) {
-    die.dotsContainer.removeAll(true);
+    // Use a single reusable graphics object instead of creating per-dot objects
+    if (!die.dotsGraphics) {
+      die.dotsGraphics = scene.add.graphics();
+      die.dotsContainer.add(die.dotsGraphics);
+    }
+    die.dotsGraphics.clear();
+
     var positions = buildDotPositions();
     var dots = positions[value] || positions[1];
 
@@ -139,23 +145,17 @@ var DiceManager = (function() {
       var px = dots[i].x;
       var py = dots[i].y;
 
-      // Dot shadow (slightly offset for depth)
-      var dotShadow = scene.add.graphics();
-      dotShadow.fillStyle(COL_DOT_SHADOW, 0.5);
-      dotShadow.fillCircle(px + DOT_SHADOW_OFFSET, py + DOT_SHADOW_OFFSET, DOT_RADIUS);
-      die.dotsContainer.add(dotShadow);
+      // Dot shadow
+      die.dotsGraphics.fillStyle(COL_DOT_SHADOW, 0.5);
+      die.dotsGraphics.fillCircle(px + DOT_SHADOW_OFFSET, py + DOT_SHADOW_OFFSET, DOT_RADIUS);
 
       // Main dot
-      var dotMain = scene.add.graphics();
-      dotMain.fillStyle(COL_DOT, 1);
-      dotMain.fillCircle(px, py, DOT_RADIUS);
-      die.dotsContainer.add(dotMain);
+      die.dotsGraphics.fillStyle(COL_DOT, 1);
+      die.dotsGraphics.fillCircle(px, py, DOT_RADIUS);
 
-      // Tiny highlight on upper-left of dot
-      var dotHL = scene.add.graphics();
-      dotHL.fillStyle(COL_DOT_HIGHLIGHT, 0.7);
-      dotHL.fillCircle(px - 2, py - 2, DOT_HIGHLIGHT_RADIUS);
-      die.dotsContainer.add(dotHL);
+      // Highlight
+      die.dotsGraphics.fillStyle(COL_DOT_HIGHLIGHT, 0.7);
+      die.dotsGraphics.fillCircle(px - 2, py - 2, DOT_HIGHLIGHT_RADIUS);
     }
   }
 

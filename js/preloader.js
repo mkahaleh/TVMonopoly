@@ -177,54 +177,29 @@ var PreloaderScene = new Phaser.Class({
       loop: true
     });
 
-    // ── Render loop for bar + particles (single update) ──
+    // ── Render loop for bar (throttled to ~20fps for TV) ──
+    var lastPct = -1;
     this.time.addEvent({
-      delay: 16, // ~60fps
+      delay: 50, // ~20fps is enough for a loading bar
       callback: function() {
-        // Smooth the displayed percentage toward actual progress
         displayProgress += (progress - displayProgress) * 0.15;
         if (progress >= 1 && displayProgress > 0.995) {
           displayProgress = 1;
         }
 
-        var fillWidth = Math.max(0, barWidth * displayProgress);
         var pct = Math.floor(displayProgress * 100);
+        // Only redraw when percentage actually changes
+        if (pct === lastPct) return;
+        lastPct = pct;
 
-        // Update percentage text
+        var fillWidth = Math.max(0, barWidth * displayProgress);
         percentText.setText(pct + '%');
 
-        // Draw glow behind bar fill
-        barGlow.clear();
-        if (fillWidth > 2) {
-          barGlow.fillStyle(COLORS_INT.desertGold, 0.15);
-          barGlow.fillRoundedRect(
-            barX - 4, barY - 4,
-            fillWidth + 8, barHeight + 8,
-            barRadius + 2
-          );
-        }
-
-        // Draw bar fill with gold gradient effect
+        // Redraw bar fill
         barFill.clear();
         if (fillWidth > 2) {
-          // Base gold fill
           barFill.fillStyle(COLORS_INT.gold2, 1);
           barFill.fillRoundedRect(barX, barY, fillWidth, barHeight, barRadius);
-
-          // Brighter gold overlay on top half for gradient illusion
-          barFill.fillStyle(COLORS_INT.gold1, 0.4);
-          barFill.fillRect(barX + barRadius, barY, Math.max(0, fillWidth - barRadius * 2), barHeight * 0.5);
-        }
-
-        // Draw subtle highlight
-        barHighlight.clear();
-        if (fillWidth > barRadius * 2) {
-          barHighlight.fillStyle(0xFFFFFF, 0.12);
-          barHighlight.fillRoundedRect(
-            barX + 2, barY + 1,
-            fillWidth - 4, barHeight * 0.4,
-            barRadius - 1
-          );
         }
       },
       loop: true
@@ -247,8 +222,8 @@ var PreloaderScene = new Phaser.Class({
     g.setAlpha(0.05);
     var w = GAME_WIDTH;
     var h = GAME_HEIGHT;
-    var size = 80;
-    var r = size * 0.32;
+    var size = 120;
+    var r = size * 0.28;
     var PI2 = Math.PI * 2;
 
     g.lineStyle(1, COLORS_INT.desertGold, 1);
@@ -345,7 +320,7 @@ var PreloaderScene = new Phaser.Class({
   // ================================================================
   createAmbientParticles: function() {
     var self = this;
-    var count = 15;
+    var count = 6;
 
     for (var i = 0; i < count; i++) {
       var p = this.add.graphics();

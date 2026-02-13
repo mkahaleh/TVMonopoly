@@ -49,9 +49,6 @@
 
   <!-- Phaser 3 -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
-  <!-- GSAP -->
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-
   <!-- Game Scripts (order matters - NO ES modules) -->
   <script src="js/config.js"></script>
   <script src="js/audio.js"></script>
@@ -91,12 +88,13 @@
             forceSetTimeOut: false,
           },
           render: {
-            antialias: true,
+            antialias: false,
             pixelArt: false,
             transparent: false,
             powerPreference: 'high-performance',
             batchSize: 4096,
-            maxLights: 10,
+            maxLights: 0,
+            roundPixels: true,
           },
           input: {
             keyboard: true,

@@ -70,7 +70,7 @@ var PlayerSetupScene = new Phaser.Class({
     var g = this.add.graphics();
     g.setAlpha(0.04);
     g.setDepth(0);
-    var size = 80;
+    var size = 140;
     var cols = Math.ceil(GAME_WIDTH / size);
     var rows = Math.ceil(GAME_HEIGHT / size);
 

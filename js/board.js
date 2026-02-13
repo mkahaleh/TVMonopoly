@@ -126,35 +126,21 @@ var BoardScene = new Phaser.Class({
   // Premium Board Drawing
   // -------------------------------------------------------
   drawBackgroundPattern: function() {
+    // Simplified pattern - fewer draw calls for TV performance
     var g = this.add.graphics();
-    g.setAlpha(0.025);
-    var size = 60;
+    g.setAlpha(0.02);
+    g.lineStyle(1, 0xC8A951, 1);
+    var size = 120; // larger grid = fewer cells
     for (var x = 0; x < GAME_WIDTH; x += size) {
       for (var y = 0; y < GAME_HEIGHT; y += size) {
         var cx = x + size / 2;
         var cy = y + size / 2;
-        var r = size * 0.3;
-        g.lineStyle(1, 0xC8A951, 1);
-        // 8-pointed star pattern
-        for (var i = 0; i < 8; i++) {
-          var a1 = (i / 8) * Math.PI * 2;
-          var a2 = ((i + 3) / 8) * Math.PI * 2;
-          g.lineBetween(
-            cx + Math.cos(a1) * r, cy + Math.sin(a1) * r,
-            cx + Math.cos(a2) * r, cy + Math.sin(a2) * r
-          );
-        }
-        // Inner diamond
-        g.lineStyle(0.5, 0xC8A951, 0.5);
-        var ir = r * 0.4;
-        for (var j = 0; j < 4; j++) {
-          var ja1 = (j / 4) * Math.PI * 2;
-          var ja2 = ((j + 1) / 4) * Math.PI * 2;
-          g.lineBetween(
-            cx + Math.cos(ja1) * ir, cy + Math.sin(ja1) * ir,
-            cx + Math.cos(ja2) * ir, cy + Math.sin(ja2) * ir
-          );
-        }
+        var r = size * 0.25;
+        // Simple 4-pointed star (half the draw calls)
+        g.lineBetween(cx - r, cy, cx + r, cy);
+        g.lineBetween(cx, cy - r, cx, cy + r);
+        g.lineBetween(cx - r * 0.7, cy - r * 0.7, cx + r * 0.7, cy + r * 0.7);
+        g.lineBetween(cx + r * 0.7, cy - r * 0.7, cx - r * 0.7, cy + r * 0.7);
       }
     }
   },
@@ -200,8 +186,12 @@ var BoardScene = new Phaser.Class({
       this.drawSpace(g, i);
     }
 
-    // Animated gold border shimmer
+    // Animated gold border shimmer - pre-drawn, alpha tween only (no clear())
     var shimmer = this.add.graphics();
+    shimmer.lineStyle(2, 0xFFD700, 1);
+    shimmer.strokeRoundedRect(bx - 1, by - 1, bs + 2, bs + 2, 9);
+    shimmer.lineStyle(1, 0xC8A951, 0.4);
+    shimmer.strokeRoundedRect(bx - 3, by - 3, bs + 6, bs + 6, 11);
     this.boardContainer.add(shimmer);
     this.tweens.add({
       targets: shimmer,
@@ -209,14 +199,7 @@ var BoardScene = new Phaser.Class({
       duration: 2500,
       yoyo: true,
       repeat: -1,
-      ease: 'Sine.easeInOut',
-      onUpdate: function() {
-        shimmer.clear();
-        shimmer.lineStyle(2, 0xFFD700, shimmer.alpha);
-        shimmer.strokeRoundedRect(bx - 1, by - 1, bs + 2, bs + 2, 9);
-        shimmer.lineStyle(1, 0xC8A951, shimmer.alpha * 0.3);
-        shimmer.strokeRoundedRect(bx - 3, by - 3, bs + 6, bs + 6, 11);
-      }
+      ease: 'Sine.easeInOut'
     });
   },
 

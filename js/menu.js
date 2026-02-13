@@ -95,51 +95,39 @@ var MenuScene = new Phaser.Class({
   // STARS — 50 twinkling points, varied size/alpha/speed
   // ================================================================
   createStars: function(w, h) {
-    var starGfx = this.add.graphics();
-    starGfx.setDepth(1);
+    // Draw ALL stars into a single static graphics object for performance
+    var staticStars = this.add.graphics();
+    staticStars.setDepth(1);
 
-    // Pre-draw all stars into one graphics object (static positions)
-    // Then animate alpha of individual small star images
-    // For performance, use circles on a single graphics + tween alpha on text dots
-
-    var starContainer = this.add.container(0, 0);
-    starContainer.setDepth(1);
-
-    var starCount = 50;
-    var starField = [];
-
-    for (var i = 0; i < starCount; i++) {
+    for (var i = 0; i < 40; i++) {
       var sx = Math.random() * w;
-      var sy = Math.random() * (h * 0.55); // only upper portion
-      var size = 0.5 + Math.random() * 2;
-      var baseAlpha = 0.2 + Math.random() * 0.6;
+      var sy = Math.random() * (h * 0.55);
+      var size = 0.5 + Math.random() * 1.5;
+      var alpha = 0.15 + Math.random() * 0.4;
+      staticStars.fillStyle(0xFFFFFF, alpha);
+      staticStars.fillCircle(sx, sy, size);
+    }
 
-      var star = this.add.graphics();
-      star.fillStyle(0xFFFFFF, 1);
-      star.fillCircle(0, 0, size);
-      // Larger stars get a subtle warm core
-      if (size > 1.3) {
-        star.fillStyle(0xFFF8E0, 0.6);
-        star.fillCircle(0, 0, size * 0.5);
-      }
-      star.setPosition(sx, sy);
-      star.setAlpha(baseAlpha);
-      starContainer.add(star);
+    // Only 8 animated twinkle stars (separate objects for tween)
+    for (var j = 0; j < 8; j++) {
+      var tx = Math.random() * w;
+      var ty = Math.random() * (h * 0.5);
+      var tstar = this.add.graphics();
+      tstar.setDepth(1);
+      tstar.fillStyle(0xFFF8E0, 1);
+      tstar.fillCircle(0, 0, 1.5);
+      tstar.setPosition(tx, ty);
+      tstar.setAlpha(0.3 + Math.random() * 0.4);
 
-      // Twinkle tween — varied durations for organic feel
-      var twinkleDuration = 1500 + Math.random() * 3000;
-      var minAlpha = Math.max(0.05, baseAlpha - 0.3 - Math.random() * 0.2);
       this.tweens.add({
-        targets: star,
-        alpha: minAlpha,
-        duration: twinkleDuration,
+        targets: tstar,
+        alpha: 0.05,
+        duration: 2000 + Math.random() * 2000,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
         delay: Math.random() * 2000
       });
-
-      starField.push(star);
     }
   },
 
@@ -553,7 +541,7 @@ var MenuScene = new Phaser.Class({
     var dustContainer = this.add.container(0, 0);
     dustContainer.setDepth(7);
 
-    var particleCount = 20;
+    var particleCount = 8;
 
     for (var i = 0; i < particleCount; i++) {
       var px = Math.random() * w;
