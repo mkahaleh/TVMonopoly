@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0, user-scalable=no">
+  <meta name="description" content="Riyadh Tycoon - A Monopoly-style board game set in Riyadh">
+  <title>ريادة الرياض | Riyadh Tycoon</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0A1628;
+      -webkit-user-select: none;
+      user-select: none;
+      cursor: none;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+    }
+    /* Preload fonts */
+    .font-preload {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      font-size: 1px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Font preload helpers -->
+  <div class="font-preload" style="font-family: 'Fredoka One';">.</div>
+  <div class="font-preload" style="font-family: 'Tajawal'; font-weight: 400;">.</div>
+  <div class="font-preload" style="font-family: 'Tajawal'; font-weight: 700;">.</div>
+  <div class="font-preload" style="font-family: 'Tajawal'; font-weight: 800;">.</div>
+
+  <!-- Game container -->
+  <div id="game-container"></div>
+
+  <!-- Phaser 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <!-- GSAP -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+
+  <!-- Game Scripts (order matters - NO ES modules) -->
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/gamelogic.js"></script>
+  <script src="js/dice.js"></script>
+  <script src="js/preloader.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/setup.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/ui.js"></script>
+
+  <!-- Game Bootstrap -->
+  <script>
+    // Wait for fonts to be ready
+    (function() {
+      function startGame() {
+        var config = {
+          type: Phaser.AUTO,
+          width: GAME_WIDTH,
+          height: GAME_HEIGHT,
+          parent: 'game-container',
+          backgroundColor: '#0A1628',
+          scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+          },
+          scene: [
+            PreloaderScene,
+            MenuScene,
+            PlayerSetupScene,
+            BoardScene,
+            GameOverScene
+          ],
+          fps: {
+            target: 60,
+            forceSetTimeOut: false,
+          },
+          render: {
+            antialias: true,
+            pixelArt: false,
+            transparent: false,
+          },
+          input: {
+            keyboard: true,
+            mouse: false,
+            touch: false,
+          },
+          audio: {
+            disableWebAudio: false,
+          },
+        };
+
+        var game = new Phaser.Game(config);
+
+        // Prevent default browser behavior for arrow keys
+        window.addEventListener('keydown', function(e) {
+          if ([37, 38, 39, 40, 13, 27].indexOf(e.keyCode) !== -1) {
+            e.preventDefault();
+          }
+        });
+
+        // Samsung Tizen TV back button handler
+        if (typeof tizen !== 'undefined') {
+          document.addEventListener('tizenhwkey', function(e) {
+            if (e.keyName === 'back') {
+              // Let the game handle it
+              var event = new KeyboardEvent('keydown', { keyCode: 27 });
+              document.dispatchEvent(event);
+            }
+          });
+        }
+      }
+
+      // Start after a brief delay to allow font loading
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function() {
+          setTimeout(startGame, 100);
+        });
+      } else {
+        setTimeout(startGame, 500);
+      }
+    })();
+  </script>
+</body>
+</html>
