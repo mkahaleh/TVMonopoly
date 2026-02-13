@@ -6,10 +6,11 @@
   <meta name="description" content="RiyadhTowers - A premium Monopoly-style board game set in Riyadh">
   <title>أبراج الرياض | RiyadhTowers</title>
 
-  <!-- Fonts — preconnect for faster DNS/TLS -->
+  <!-- Fonts — preconnect + async load (non-blocking) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet"></noscript>
 
   <style>
     * {
@@ -49,8 +50,8 @@
   <!-- Game container -->
   <div id="game-container"></div>
 
-  <!-- Phaser 3 -->
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <!-- Phaser 3 (local bundle — no CDN fetch on deploy) -->
+  <script src="lib/phaser.min.js"></script>
   <!-- Game Scripts (order matters - NO ES modules) -->
   <script src="js/config.js"></script>
   <script src="js/audio.js"></script>
@@ -86,7 +87,7 @@
             GameOverScene
           ],
           fps: {
-            target: 60,
+            target: 30,
             forceSetTimeOut: false,
           },
           render: {
