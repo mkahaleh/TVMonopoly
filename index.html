@@ -6,13 +6,33 @@
   <meta name="description" content="RiyadhTowers - A premium Monopoly-style board game set in Riyadh">
   <title>أبراج الرياض | RiyadhTowers</title>
 
-  <!-- Fonts — preconnect + async load (non-blocking) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet"></noscript>
-
   <style>
+    /* Local fonts — ZERO network requests */
+    @font-face {
+      font-family: 'Fredoka One';
+      src: url('fonts/FredokaOne-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Tajawal';
+      src: url('fonts/Tajawal-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Tajawal';
+      src: url('fonts/Tajawal-Bold.ttf') format('truetype');
+      font-weight: 700;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Tajawal';
+      src: url('fonts/Tajawal-ExtraBold.ttf') format('truetype');
+      font-weight: 800;
+      font-display: swap;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -31,26 +51,13 @@
       display: block;
       margin: 0 auto;
     }
-    /* Preload fonts */
-    .font-preload {
-      position: absolute;
-      left: -9999px;
-      top: -9999px;
-      font-size: 1px;
-    }
   </style>
 </head>
 <body>
-  <!-- Font preload helpers -->
-  <div class="font-preload" style="font-family: 'Fredoka One';">.</div>
-  <div class="font-preload" style="font-family: 'Tajawal'; font-weight: 400;">.</div>
-  <div class="font-preload" style="font-family: 'Tajawal'; font-weight: 700;">.</div>
-  <div class="font-preload" style="font-family: 'Tajawal'; font-weight: 800;">.</div>
-
   <!-- Game container -->
   <div id="game-container"></div>
 
-  <!-- Phaser 3 (local bundle — no CDN fetch on deploy) -->
+  <!-- Phaser 3 (local bundle — no CDN fetch) -->
   <script src="lib/phaser.min.js"></script>
   <!-- Game Scripts (order matters - NO ES modules) -->
   <script src="js/config.js"></script>
@@ -64,77 +71,66 @@
   <script src="js/board.js"></script>
   <script src="js/ui.js"></script>
 
-  <!-- Game Bootstrap -->
+  <!-- Game Bootstrap — starts IMMEDIATELY, no network waits -->
   <script>
-    // Wait for fonts to be ready
     (function() {
-      function startGame() {
-        var config = {
-          type: Phaser.WEBGL,
-          width: GAME_WIDTH,
-          height: GAME_HEIGHT,
-          parent: 'game-container',
-          backgroundColor: '#060E1A',
-          scale: {
-            mode: Phaser.Scale.FIT,
-            autoCenter: Phaser.Scale.CENTER_BOTH,
-          },
-          scene: [
-            PreloaderScene,
-            MenuScene,
-            PlayerSetupScene,
-            BoardScene,
-            GameOverScene
-          ],
-          fps: {
-            target: 30,
-            forceSetTimeOut: false,
-          },
-          render: {
-            antialias: false,
-            pixelArt: false,
-            transparent: false,
-            powerPreference: 'high-performance',
-            batchSize: 4096,
-            maxLights: 0,
-            roundPixels: true,
-          },
-          input: {
-            keyboard: true,
-            mouse: false,
-            touch: false,
-          },
-          audio: {
-            disableWebAudio: false,
-          },
-        };
+      var config = {
+        type: Phaser.WEBGL,
+        width: GAME_WIDTH,
+        height: GAME_HEIGHT,
+        parent: 'game-container',
+        backgroundColor: '#060E1A',
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+        },
+        scene: [
+          PreloaderScene,
+          MenuScene,
+          PlayerSetupScene,
+          BoardScene,
+          GameOverScene
+        ],
+        fps: {
+          target: 30,
+          forceSetTimeOut: false,
+        },
+        render: {
+          antialias: false,
+          pixelArt: false,
+          transparent: false,
+          powerPreference: 'high-performance',
+          batchSize: 4096,
+          maxLights: 0,
+          roundPixels: true,
+        },
+        input: {
+          keyboard: true,
+          mouse: false,
+          touch: false,
+        },
+        audio: {
+          disableWebAudio: false,
+        },
+      };
 
-        var game = new Phaser.Game(config);
+      var game = new Phaser.Game(config);
 
-        // Prevent default browser behavior for arrow keys
-        window.addEventListener('keydown', function(e) {
-          if ([37, 38, 39, 40, 13, 27].indexOf(e.keyCode) !== -1) {
-            e.preventDefault();
+      // Prevent default browser behavior for arrow keys
+      window.addEventListener('keydown', function(e) {
+        if ([37, 38, 39, 40, 13, 27].indexOf(e.keyCode) !== -1) {
+          e.preventDefault();
+        }
+      });
+
+      // Samsung Tizen TV back button handler
+      if (typeof tizen !== 'undefined') {
+        document.addEventListener('tizenhwkey', function(e) {
+          if (e.keyName === 'back') {
+            var event = new KeyboardEvent('keydown', { keyCode: 27 });
+            document.dispatchEvent(event);
           }
         });
-
-        // Samsung Tizen TV back button handler
-        if (typeof tizen !== 'undefined') {
-          document.addEventListener('tizenhwkey', function(e) {
-            if (e.keyName === 'back') {
-              // Let the game handle it
-              var event = new KeyboardEvent('keydown', { keyCode: 27 });
-              document.dispatchEvent(event);
-            }
-          });
-        }
-      }
-
-      // Start as soon as fonts are ready (no artificial delays)
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(startGame);
-      } else {
-        setTimeout(startGame, 200);
       }
     })();
   </script>

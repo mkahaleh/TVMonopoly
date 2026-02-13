@@ -8,5 +8,5 @@
   <name>RiyadhTowers</name>
   <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
   <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto"/>
-  <access origin="*" subdomains="true"/>
+  <!-- No network access needed — all assets are bundled locally -->
 </widget>
