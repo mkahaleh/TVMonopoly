@@ -1199,9 +1199,9 @@ var DiceManager = (function() {
   var COL_TOTAL_BORDER = 0xC8A951;
 
   // Roll animation
-  var ROLL_FRAMES = 8;
-  var ROLL_INTERVAL = 80;
-  var RESULT_HOLD_MS = 900;
+  var ROLL_FRAMES = 6;
+  var ROLL_INTERVAL = 60;
+  var RESULT_HOLD_MS = 600;
 
   // --- Cached dot position lookup (value -> [{x,y}]) ---
   var DOT_POSITIONS_CACHE = null;
@@ -1598,55 +1598,21 @@ var PreloaderScene = new Phaser.Class({
   },
 
   create: function() {
-    var w = GAME_WIDTH;
-    var h = GAME_HEIGHT;
     var self = this;
-
-    // ── Dismiss CSS loading screen ──────────────────────────────
-    var ls = document.getElementById('loading-screen');
-    if (ls) {
-      ls.classList.add('fade-out');
-      setTimeout(function() { if (ls.parentNode) ls.parentNode.removeChild(ls); }, 400);
-    }
-
-    this.cameras.main.setBackgroundColor(0x060E1A);
-
-    // Single graphics object for all visuals
-    var g = this.add.graphics();
-    g.fillStyle(COLORS_INT.desertGold, 0.85);
-    g.fillCircle(w / 2, h * 0.18, 30);
-    g.fillStyle(0x060E1A, 1);
-    g.fillCircle(w / 2 + 12, h * 0.18 - 6, 27);
-
-    this.add.text(w / 2, h * 0.36, '\u0623\u0628\u0631\u0627\u062C \u0627\u0644\u0631\u064A\u0627\u0636', {
-      fontFamily: 'Tajawal, sans-serif',
-      fontSize: '88px',
-      fontStyle: '800',
-      color: COLORS.desertGold,
-      stroke: '#0A1628',
-      strokeThickness: 6,
-    }).setOrigin(0.5);
-
-    this.add.text(w / 2, h * 0.36 + 72, 'RIYADHTOWERS', {
-      fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '36px',
-      color: COLORS.warmSand,
-      letterSpacing: 8,
-      stroke: '#0A1628',
-      strokeThickness: 4,
-    }).setOrigin(0.5);
 
     // ── Pre-generate all tile textures used by later scenes ────
     // This avoids stalls when those scenes first create()
     this.preGenerateTextures();
 
-    // Give GPU 100ms to flush texture uploads before transitioning
-    self.time.delayedCall(100, function() {
-      self.cameras.main.fadeOut(80, 6, 14, 26);
-      self.time.delayedCall(80, function() {
-        self.scene.start('MenuScene');
-      });
-    });
+    // ── Dismiss CSS loading screen ──────────────────────────────
+    var ls = document.getElementById('loading-screen');
+    if (ls) {
+      ls.classList.add('fade-out');
+      setTimeout(function() { if (ls.parentNode) ls.parentNode.removeChild(ls); }, 300);
+    }
+
+    // Transition immediately — CSS loading screen covers the gap
+    self.scene.start('MenuScene');
   },
 
   preGenerateTextures: function() {
@@ -1916,8 +1882,8 @@ var MenuScene = new Phaser.Class({
     InputManager.setupKeyboard(this);
     InputManager.on('enter', function() {
       AudioManager.menuConfirm();
-      self.cameras.main.fadeOut(400, 6, 14, 26);
-      self.time.delayedCall(400, function() {
+      self.cameras.main.fadeOut(250, 6, 14, 26);
+      self.time.delayedCall(250, function() {
         self.scene.start('PlayerSetupScene');
       });
     });
@@ -1932,53 +1898,17 @@ var MenuScene = new Phaser.Class({
   },
 
   // ================================================================
-  // ANIMATED ELEMENTS — minimal count for ambiance
+  // ANIMATED ELEMENTS — minimal for TV performance
   // ================================================================
   createAnimatedElements: function(w, h) {
-    // 3 twinkling stars (down from 8)
-    for (var j = 0; j < 3; j++) {
-      var tstar = this.add.graphics();
-      tstar.setDepth(1);
-      tstar.fillStyle(0xFFF8E0, 1);
-      tstar.fillCircle(0, 0, 1.5);
-      tstar.setPosition(Math.random() * w, Math.random() * (h * 0.5));
-      tstar.setAlpha(0.5);
-      this.tweens.add({
-        targets: tstar,
-        alpha: 0.05,
-        duration: 2500 + Math.random() * 2000,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-        delay: Math.random() * 2000
-      });
-    }
-
-    // 2 clouds (down from 4)
-    var cloudData = [
-      { x: w * 0.25, y: h * 0.12, scaleX: 1.0, alpha: 0.025, drift: 60 },
-      { x: w * 0.70, y: h * 0.18, scaleX: 1.2, alpha: 0.02, drift: 50 },
-    ];
-    for (var i = 0; i < cloudData.length; i++) {
-      var cd = cloudData[i];
-      var cloud = this.add.graphics();
-      cloud.setDepth(3);
-      cloud.fillStyle(0xF5E6C8, 1);
-      cloud.fillEllipse(0, 0, 200 * cd.scaleX, 25);
-      cloud.fillEllipse(50 * cd.scaleX, -3, 140 * cd.scaleX, 18);
-      cloud.setPosition(cd.x, cd.y);
-      cloud.setAlpha(cd.alpha);
-      this.tweens.add({
-        targets: cloud,
-        x: cd.x + cd.drift,
-        duration: 30000 + i * 8000,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-      });
-    }
-
-    // Dust particles removed — saves continuous tween overhead on Tizen TV
+    // Single cloud — static positioned (no tween needed at near-zero alpha)
+    var cloud = this.add.graphics();
+    cloud.setDepth(3);
+    cloud.fillStyle(0xF5E6C8, 1);
+    cloud.fillEllipse(0, 0, 200, 25);
+    cloud.fillEllipse(50, -3, 140, 18);
+    cloud.setPosition(w * 0.40, h * 0.14);
+    cloud.setAlpha(0.02);
   },
 
   // ================================================================
@@ -2005,15 +1935,6 @@ var MenuScene = new Phaser.Class({
       shadow: { offsetX: 0, offsetY: 4, color: '#000000', blur: 12, fill: true }
     }).setOrigin(0.5);
     uiContainer.add(titleAr);
-
-    this.tweens.add({
-      targets: titleAr,
-      alpha: { from: 1, to: 0.78 },
-      duration: 2200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
 
     var subY = titleY + 80;
     uiContainer.add(this.add.text(w / 2, subY, 'RIYADHTOWERS', {
@@ -2086,7 +2007,7 @@ var PlayerSetupScene = new Phaser.Class({
     var self = this;
 
     this.cameras.main.setBackgroundColor(COLORS_INT.deepNavy);
-    this.cameras.main.fadeIn(500);
+    this.cameras.main.fadeIn(250);
 
     // Phase tracking
     this.setupPhase = 'count'; // count | tokens | ready
@@ -2197,7 +2118,7 @@ var PlayerSetupScene = new Phaser.Class({
   // ===========================================================
   transitionTo: function(buildFn) {
     var self = this;
-    var dur = 180;
+    var dur = 120;
 
     // Fade out existing content
     this.tweens.add({
@@ -2304,23 +2225,15 @@ var PlayerSetupScene = new Phaser.Class({
   createCountCard: function(x, y, cw, ch, num) {
     var container = this.add.container(x, y);
 
-    // Shadow
-    var shadow = this.add.graphics();
-    shadow.fillStyle(COLORS_INT.shadow, 0.5);
-    shadow.fillRoundedRect(-cw / 2 + 4, -ch / 2 + 4, cw, ch, 16);
-    container.add(shadow);
-
-    // Card background
+    // Single graphics for shadow + bg + border (was 3 separate)
     var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.shadow, 0.5);
+    bg.fillRoundedRect(-cw / 2 + 4, -ch / 2 + 4, cw, ch, 16);
     bg.fillStyle(COLORS_INT.cardBg, 1);
     bg.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+    bg.lineStyle(2, COLORS_INT.desertGold, 0.5);
+    bg.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
     container.add(bg);
-
-    // Gold border
-    var border = this.add.graphics();
-    border.lineStyle(2, COLORS_INT.desertGold, 0.5);
-    border.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
-    container.add(border);
 
     // Large number
     var numText = this.add.text(0, -8, num.toString(), {
@@ -2331,28 +2244,21 @@ var PlayerSetupScene = new Phaser.Class({
     }).setOrigin(0.5);
     container.add(numText);
 
-    // Focus glow ring
+    // Single graphics for focus glow (was glow + shimmer)
     var glow = this.add.graphics();
     glow.lineStyle(3, COLORS_INT.accent, 1);
     glow.strokeRoundedRect(-cw / 2 - 4, -ch / 2 - 4, cw + 8, ch + 8, 18);
+    glow.lineStyle(1, COLORS_INT.accentLight, 0.4);
+    glow.strokeRoundedRect(-cw / 2 - 8, -ch / 2 - 8, cw + 16, ch + 16, 20);
     glow.setVisible(false);
     container.add(glow);
-
-    // Outer shimmer
-    var shimmer = this.add.graphics();
-    shimmer.lineStyle(1, COLORS_INT.accentLight, 0.4);
-    shimmer.strokeRoundedRect(-cw / 2 - 8, -ch / 2 - 8, cw + 16, ch + 16, 20);
-    shimmer.setVisible(false);
-    container.add(shimmer);
 
     return {
       container: container,
       glow: glow,
-      shimmer: shimmer,
       numText: numText,
       setFocused: function(focused) {
         glow.setVisible(focused);
-        shimmer.setVisible(focused);
         container.setScale(focused ? 1.08 : 1.0);
         numText.setColor(focused ? COLORS.accent : COLORS.desertGold);
       }
@@ -2492,29 +2398,17 @@ var PlayerSetupScene = new Phaser.Class({
   createTokenCard: function(x, y, cw, ch, token, borderColor) {
     var container = this.add.container(x, y);
 
-    // Shadow
-    var shadow = this.add.graphics();
-    shadow.fillStyle(COLORS_INT.shadow, 0.45);
-    shadow.fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw, ch, 14);
-    container.add(shadow);
-
-    // Card background
+    // Single graphics for shadow + bg + accent + border (was 4 separate)
     var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.shadow, 0.45);
+    bg.fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw, ch, 14);
     bg.fillStyle(COLORS_INT.cardBg, 1);
     bg.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 14);
+    bg.fillStyle(borderColor, 0.25);
+    bg.fillRoundedRect(-cw / 2, -ch / 2, cw, 6, { tl: 14, tr: 14, bl: 0, br: 0 });
+    bg.lineStyle(2, borderColor, 0.5);
+    bg.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 14);
     container.add(bg);
-
-    // Colored top accent bar
-    var accent = this.add.graphics();
-    accent.fillStyle(borderColor, 0.25);
-    accent.fillRoundedRect(-cw / 2, -ch / 2, cw, 6, { tl: 14, tr: 14, bl: 0, br: 0 });
-    container.add(accent);
-
-    // Border — player-colored
-    var border = this.add.graphics();
-    border.lineStyle(2, borderColor, 0.5);
-    border.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 14);
-    container.add(border);
 
     // Emoji — large
     var emoji = this.add.text(0, -35, token.emoji, {
@@ -2617,8 +2511,8 @@ var PlayerSetupScene = new Phaser.Class({
         alpha: 1,
         scaleX: 1,
         scaleY: 1,
-        duration: 350,
-        delay: i * 120,
+        duration: 250,
+        delay: i * 80,
         ease: 'Back.easeOut'
       });
     }
@@ -2660,35 +2554,19 @@ var PlayerSetupScene = new Phaser.Class({
     var pc = data.color;
     var pcStr = data.colorStr;
 
-    // Shadow
-    var shadow = this.add.graphics();
-    shadow.fillStyle(COLORS_INT.shadow, 0.5);
-    shadow.fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw, ch, 16);
-    container.add(shadow);
-
-    // Card BG with subtle gradient (darker at top, lighter at bottom)
+    // Single graphics for shadow + bg + gradient + accent + border (was 5 separate)
     var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.shadow, 0.5);
+    bg.fillRoundedRect(-cw / 2 + 5, -ch / 2 + 5, cw, ch, 16);
     bg.fillStyle(COLORS_INT.cardBgLight, 1);
     bg.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+    bg.fillStyle(pc, 0.12);
+    bg.fillRoundedRect(-cw / 2, -ch / 2, cw, 70, { tl: 16, tr: 16, bl: 0, br: 0 });
+    bg.fillStyle(pc, 0.8);
+    bg.fillRoundedRect(-cw / 2, -ch / 2, cw, 5, { tl: 16, tr: 16, bl: 0, br: 0 });
+    bg.lineStyle(2, pc, 0.6);
+    bg.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
     container.add(bg);
-
-    // Top gradient overlay — player color at low opacity
-    var topGrad = this.add.graphics();
-    topGrad.fillStyle(pc, 0.12);
-    topGrad.fillRoundedRect(-cw / 2, -ch / 2, cw, 70, { tl: 16, tr: 16, bl: 0, br: 0 });
-    container.add(topGrad);
-
-    // Player color accent bar at very top
-    var accentBar = this.add.graphics();
-    accentBar.fillStyle(pc, 0.8);
-    accentBar.fillRoundedRect(-cw / 2, -ch / 2, cw, 5, { tl: 16, tr: 16, bl: 0, br: 0 });
-    container.add(accentBar);
-
-    // Border — player color
-    var border = this.add.graphics();
-    border.lineStyle(2, pc, 0.6);
-    border.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
-    container.add(border);
 
     // Emoji
     var emoji = this.add.text(0, -55, data.token ? data.token.emoji : '?', {
@@ -2741,29 +2619,17 @@ var PlayerSetupScene = new Phaser.Class({
   createStartButton: function(x, y, bw, bh) {
     var container = this.add.container(x, y);
 
-    // Shadow
-    var shadow = this.add.graphics();
-    shadow.fillStyle(COLORS_INT.shadow, 0.5);
-    shadow.fillRoundedRect(-bw / 2 + 3, -bh / 2 + 3, bw, bh, 14);
-    container.add(shadow);
-
-    // Green background
+    // Single graphics for shadow + bg + highlight + border (was 4 separate)
     var bg = this.add.graphics();
+    bg.fillStyle(COLORS_INT.shadow, 0.5);
+    bg.fillRoundedRect(-bw / 2 + 3, -bh / 2 + 3, bw, bh, 14);
     bg.fillStyle(COLORS_INT.saudiGreen, 1);
     bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 14);
+    bg.fillStyle(lightenColor(COLORS_INT.saudiGreen, 0.15), 0.4);
+    bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh / 2, { tl: 14, tr: 14, bl: 0, br: 0 });
+    bg.lineStyle(2, COLORS_INT.desertGold, 0.4);
+    bg.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 14);
     container.add(bg);
-
-    // Lighter green top highlight
-    var highlight = this.add.graphics();
-    highlight.fillStyle(lightenColor(COLORS_INT.saudiGreen, 0.15), 0.4);
-    highlight.fillRoundedRect(-bw / 2, -bh / 2, bw, bh / 2, { tl: 14, tr: 14, bl: 0, br: 0 });
-    container.add(highlight);
-
-    // Subtle gold border
-    var border = this.add.graphics();
-    border.lineStyle(2, COLORS_INT.desertGold, 0.4);
-    border.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 14);
-    container.add(border);
 
     // Arabic text
     var labelAr = this.add.text(0, -11, '\u0627\u0628\u062F\u0623 \u0627\u0644\u0644\u0639\u0628', {
@@ -2819,8 +2685,8 @@ var PlayerSetupScene = new Phaser.Class({
     GameState.init(this.playerNames, this.selectedTokens);
 
     // Fade out and start board
-    this.cameras.main.fadeOut(500, 10, 22, 40);
-    this.time.delayedCall(500, function() {
+    this.cameras.main.fadeOut(300, 10, 22, 40);
+    this.time.delayedCall(300, function() {
       self.scene.start('BoardScene');
     });
   }
@@ -2841,7 +2707,7 @@ var BoardScene = new Phaser.Class({
     var self = this;
 
     this.cameras.main.setBackgroundColor(COLORS_INT.deepNavy);
-    this.cameras.main.fadeIn(500);
+    this.cameras.main.fadeIn(300);
 
     // Board layout constants
     this.boardSize = 720;
@@ -3026,14 +2892,8 @@ var BoardScene = new Phaser.Class({
     this._boardShimmer.lineStyle(1, 0xC8A951, 0.4);
     this._boardShimmer.strokeRoundedRect(bx - 3, by - 3, bs + 6, bs + 6, 11);
     this.boardContainer.add(this._boardShimmer);
-    this.tweens.add({
-      targets: this._boardShimmer,
-      alpha: { from: 0.2, to: 0.6 },
-      duration: 3500,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
+    // Static shimmer at fixed alpha — avoids infinite tween overhead
+    this._boardShimmer.setAlpha(0.35);
   },
 
   drawSpace: function(g, index) {
@@ -3865,7 +3725,7 @@ var BoardScene = new Phaser.Class({
     switch (action.type) {
       case 'go':
         this.showMessage('إنطلق!', 'GO!', COLORS.success);
-        this.time.delayedCall(1000, function() { self.endTurn(rolledDoubles); });
+        this.time.delayedCall(600, function() { self.endTurn(rolledDoubles); });
         break;
 
       case 'unowned':
@@ -3889,11 +3749,11 @@ var BoardScene = new Phaser.Class({
         this.updateHUD();
 
         if (GameState.checkBankruptcy(player)) {
-          this.time.delayedCall(1500, function() {
+          this.time.delayedCall(1000, function() {
             self.handleBankruptcy(player, action.owner);
           });
         } else {
-          this.time.delayedCall(1500, function() { self.endTurn(rolledDoubles); });
+          this.time.delayedCall(1000, function() { self.endTurn(rolledDoubles); });
         }
         break;
 
@@ -3908,11 +3768,11 @@ var BoardScene = new Phaser.Class({
         this.updateHUD();
 
         if (GameState.checkBankruptcy(player)) {
-          this.time.delayedCall(1500, function() {
+          this.time.delayedCall(1000, function() {
             self.handleBankruptcy(player, -1);
           });
         } else {
-          this.time.delayedCall(1500, function() { self.endTurn(rolledDoubles); });
+          this.time.delayedCall(1000, function() { self.endTurn(rolledDoubles); });
         }
         break;
 
@@ -3929,7 +3789,7 @@ var BoardScene = new Phaser.Class({
         AudioManager.goToJail();
         GameState.sendToJail(player);
         this.teleportToken(player.index, 10);
-        this.time.delayedCall(1500, function() { self.endTurn(false); });
+        this.time.delayedCall(1000, function() { self.endTurn(false); });
         break;
 
       case 'freeparking':
@@ -3945,12 +3805,12 @@ var BoardScene = new Phaser.Class({
         } else {
           this.showMessage('استراحة حرة', 'Free Parking', COLORS.textSecondary);
         }
-        this.time.delayedCall(1200, function() { self.endTurn(rolledDoubles); });
+        this.time.delayedCall(800, function() { self.endTurn(rolledDoubles); });
         break;
 
       case 'visiting':
         this.showMessage('زيارة فقط', 'Just Visiting', COLORS.textSecondary);
-        this.time.delayedCall(800, function() { self.endTurn(rolledDoubles); });
+        this.time.delayedCall(500, function() { self.endTurn(rolledDoubles); });
         break;
 
       case 'own':
@@ -3989,7 +3849,7 @@ var BoardScene = new Phaser.Class({
             owner.money += newAction.rent;
             self.showMessage('ادفع ' + newAction.rent + ' SAR', 'Pay ' + newAction.rent + ' SAR rent', COLORS.danger);
             self.updateHUD();
-            self.time.delayedCall(1200, function() { self.endTurn(rolledDoubles); });
+            self.time.delayedCall(800, function() { self.endTurn(rolledDoubles); });
           } else {
             self.endTurn(rolledDoubles);
           }
@@ -3997,7 +3857,7 @@ var BoardScene = new Phaser.Class({
       } else if (result.type === 'jail') {
         self.teleportToken(player.index, 10);
         self.updateHUD();
-        self.time.delayedCall(800, function() { self.endTurn(false); });
+        self.time.delayedCall(500, function() { self.endTurn(false); });
       } else if (result.type === 'back') {
         self.teleportToken(player.index, player.position);
         self.updateHUD();
@@ -4009,11 +3869,11 @@ var BoardScene = new Phaser.Class({
             self.endTurn(rolledDoubles);
           });
         } else {
-          self.time.delayedCall(800, function() { self.endTurn(rolledDoubles); });
+          self.time.delayedCall(500, function() { self.endTurn(rolledDoubles); });
         }
       } else {
         self.updateHUD();
-        self.time.delayedCall(1000, function() { self.endTurn(rolledDoubles); });
+        self.time.delayedCall(600, function() { self.endTurn(rolledDoubles); });
       }
     });
   },
@@ -4033,18 +3893,18 @@ var BoardScene = new Phaser.Class({
 
     if (rolledDoubles && !GameState.currentPlayer().inJail) {
       this.showMessage('مرة أخرى!', 'Doubles! Roll again!', COLORS.accent);
-      this.time.delayedCall(1000, function() {
+      this.time.delayedCall(600, function() {
         self.turnState = 'waitRoll';
         self.showRollPrompt();
       });
     } else {
       GameState.nextTurn();
       if (GameState.gameOver) {
-        this.time.delayedCall(500, function() {
+        this.time.delayedCall(300, function() {
           self.scene.start('GameOverScene', { winner: GameState.winner });
         });
       } else {
-        this.time.delayedCall(600, function() {
+        this.time.delayedCall(400, function() {
           self.showTurnStart();
         });
       }
@@ -4106,14 +3966,14 @@ var BoardScene = new Phaser.Class({
           } else {
             self.showMessage('لم تحصل على مزدوج', 'No doubles - still in jail', COLORS.danger);
             DiceManager.hide();
-            self.time.delayedCall(1200, function() { self.endTurn(false); });
+            self.time.delayedCall(800, function() { self.endTurn(false); });
           }
         });
       } else if (choice === 'pay') {
         GameState.payJailFine(player);
         self.showMessage('دفعت 50 ريال - خرجت!', 'Paid 50 SAR - Free!', COLORS.success);
         self.updateHUD();
-        self.time.delayedCall(800, function() {
+        self.time.delayedCall(500, function() {
           self.turnState = 'waitRoll';
           self.showRollPrompt();
         });
@@ -4121,7 +3981,7 @@ var BoardScene = new Phaser.Class({
         GameState.useJailFreeCard(player);
         self.showMessage('استخدمت بطاقة الحرية!', 'Used Jail Free Card!', COLORS.success);
         self.updateHUD();
-        self.time.delayedCall(800, function() {
+        self.time.delayedCall(500, function() {
           self.turnState = 'waitRoll';
           self.showRollPrompt();
         });
@@ -4785,11 +4645,11 @@ var BoardScene = new Phaser.Class({
     });
 
     // Auto-hide
-    this.time.delayedCall(2500, function() {
+    this.time.delayedCall(1500, function() {
       self.tweens.add({
         targets: msgContainer,
         y: -h - 10,
-        duration: 250,
+        duration: 200,
         ease: 'Quad.easeIn',
       });
     });
@@ -4821,9 +4681,9 @@ var GameOverScene = new Phaser.Class({
     this.fireworkParticles = [];
     this.confettiPieces = [];
     this.ambientParticles = [];
-    this.maxFireworkParticles = 16;  // reduced from 32 for Tizen TV
-    this.maxConfetti = 6;             // reduced from 10
-    this.maxAmbient = 3;              // reduced from 6
+    this.maxFireworkParticles = 8;    // reduced for 60fps TV performance
+    this.maxConfetti = 4;             // reduced for 60fps TV performance
+    this.maxAmbient = 2;              // reduced for 60fps TV performance
     this._frameCounter = 0;           // for update throttling
   },
 
@@ -4833,7 +4693,7 @@ var GameOverScene = new Phaser.Class({
     var self = this;
 
     this.cameras.main.setBackgroundColor(COLORS_INT.deepNavy);
-    this.cameras.main.fadeIn(600);
+    this.cameras.main.fadeIn(300);
 
     // ----------------------------------------------------------
     // 1. Background — Islamic geometric star pattern (8-pointed)
@@ -4851,7 +4711,7 @@ var GameOverScene = new Phaser.Class({
     this.createFireworkPool();
     this.launchFirework();
     this.time.addEvent({
-      delay: 2500,  // slower frequency for Tizen TV (was 1500)
+      delay: 3500,  // reduced frequency for 60fps TV performance
       callback: function() { self.launchFirework(); },
       loop: true
     });
@@ -4883,14 +4743,14 @@ var GameOverScene = new Phaser.Class({
       fontSize: '120px'
     }).setOrigin(0.5).setDepth(10);
 
+    // Single scale-up entrance, no infinite repeat
+    trophy.setScale(0.5);
     this.tweens.add({
       targets: trophy,
-      scaleX: 1.25,
-      scaleY: 1.25,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
+      scaleX: 1,
+      scaleY: 1,
+      duration: 500,
+      ease: 'Back.easeOut'
     });
 
     // ----------------------------------------------------------
@@ -5108,8 +4968,8 @@ var GameOverScene = new Phaser.Class({
 
     InputManager.on('enter', function() {
       AudioManager.menuConfirm();
-      self.cameras.main.fadeOut(400, 6, 14, 26);
-      self.time.delayedCall(400, function() {
+      self.cameras.main.fadeOut(250, 6, 14, 26);
+      self.time.delayedCall(250, function() {
         if (self.focusIdx === 0) {
           self.scene.start('PlayerSetupScene');
         } else {
@@ -5123,11 +4983,11 @@ var GameOverScene = new Phaser.Class({
   // Update loop — animate confetti, ambient particles
   // ============================================================
   update: function(time, delta) {
-    // Throttle: process particles every other frame to save CPU on Tizen TV
+    // Throttle: process particles every 3rd frame at 60fps (~20fps particle updates)
     this._frameCounter++;
-    if (this._frameCounter % 2 !== 0) return;
+    if (this._frameCounter % 3 !== 0) return;
 
-    var dt = (delta * 2) / 1000; // compensate for skipped frame
+    var dt = (delta * 3) / 1000; // compensate for skipped frames
     var i, p;
 
     // Confetti animation
@@ -5287,7 +5147,7 @@ var GameOverScene = new Phaser.Class({
     var by = 80 + Math.random() * (GAME_HEIGHT * 0.35);
     var colors = [0xE74C3C, 0x3498DB, 0xF39C12, 0x9B59B6, 0xE8B931, 0x27AE60, 0xFF69B4, 0xFFD700];
     var color = colors[Math.floor(Math.random() * colors.length)];
-    var particleCount = 6;  // reduced from 8 for Tizen TV
+    var particleCount = 4;  // reduced for 60fps TV performance
 
     for (var i = 0; i < particleCount; i++) {
       var p = this.getFireworkParticle();
