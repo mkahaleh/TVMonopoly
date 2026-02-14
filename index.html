@@ -6,6 +6,11 @@
   <meta name="description" content="RiyadhTowers - A premium Monopoly-style board game set in Riyadh">
   <title>أبراج الرياض | RiyadhTowers</title>
 
+  <!-- Preload critical fonts so they download during JS parsing -->
+  <link rel="preload" href="fonts/Tajawal-Bold.ttf" as="font" type="font/truetype" crossorigin>
+  <link rel="preload" href="fonts/FredokaOne-Regular.ttf" as="font" type="font/truetype" crossorigin>
+  <link rel="preload" href="fonts/Tajawal-ExtraBold.ttf" as="font" type="font/truetype" crossorigin>
+
   <style>
     /* Local fonts — ZERO network requests */
     @font-face {
@@ -42,7 +47,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #0A1628;
+      background: #060E1A;
       -webkit-user-select: none;
       user-select: none;
       cursor: none;
@@ -51,9 +56,82 @@
       display: block;
       margin: 0 auto;
     }
+
+    /* ============================================
+       CSS Loading Screen — visible INSTANTLY
+       Covers the 3-5s JS parsing delay on Tizen TV
+       ============================================ */
+    #loading-screen {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: #060E1A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.4s ease-out;
+    }
+    #loading-screen.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* Crescent moon */
+    .ls-moon {
+      position: relative;
+      width: 60px;
+      height: 60px;
+      margin-bottom: 28px;
+    }
+    .ls-moon::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 5px;
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      background: #C8A951;
+    }
+    .ls-moon::after {
+      content: '';
+      position: absolute;
+      top: -5px; left: 20px;
+      width: 45px; height: 45px;
+      border-radius: 50%;
+      background: #060E1A;
+    }
+    .ls-title {
+      font-family: serif;
+      font-size: 52px;
+      color: #C8A951;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+    .ls-subtitle {
+      font-family: sans-serif;
+      font-size: 18px;
+      color: #7B93B8;
+      letter-spacing: 6px;
+      margin-bottom: 36px;
+    }
+    .ls-spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #1E3355;
+      border-top-color: #C8A951;
+      border-radius: 50%;
+      animation: ls-spin 0.7s linear infinite;
+    }
+    @keyframes ls-spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+  <!-- CSS Loading Screen — renders within 50ms, covers JS parsing delay -->
+  <div id="loading-screen">
+    <div class="ls-moon"></div>
+    <div class="ls-title">أبراج الرياض</div>
+    <div class="ls-subtitle">RIYADHTOWERS</div>
+    <div class="ls-spinner"></div>
+  </div>
+
   <!-- Game container -->
   <div id="game-container"></div>
 

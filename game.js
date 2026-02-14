@@ -236,8 +236,17 @@ var AudioManager = {
   ctx: null,
   enabled: true,
   masterVolume: 0.3,
+  _initAttempted: false,
 
   init: function() {
+    // Lazy init: defer AudioContext creation to first user interaction
+    // Tizen TV blocks audio context until user gesture anyway
+    this._initAttempted = true;
+  },
+
+  _ensureContext: function() {
+    if (this.ctx) return;
+    if (!this._initAttempted) return;
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) {
@@ -252,7 +261,9 @@ var AudioManager = {
   },
 
   playTone: function(frequency, duration, type, volume) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this._ensureContext();
+    if (!this.ctx) return;
     this.resume();
     type = type || 'sine';
     volume = (volume !== undefined ? volume : 1) * this.masterVolume;
@@ -270,7 +281,9 @@ var AudioManager = {
 
   // Schedule a tone at a specific time offset using Web Audio timing (no setTimeout)
   playToneAt: function(frequency, duration, type, volume, delaySeconds) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this._ensureContext();
+    if (!this.ctx) return;
     this.resume();
     type = type || 'sine';
     volume = (volume !== undefined ? volume : 1) * this.masterVolume;
@@ -288,7 +301,9 @@ var AudioManager = {
   },
 
   playNotes: function(notes, interval) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this._ensureContext();
+    if (!this.ctx) return;
     this.resume();
     var intervalSec = (interval || 120) / 1000;
     for (var i = 0; i < notes.length; i++) {
@@ -299,7 +314,9 @@ var AudioManager = {
 
   // Sound effects — all use Web Audio scheduling (no setTimeout leaks)
   diceRoll: function() {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled) return;
+    this._ensureContext();
+    if (!this.ctx) return;
     this.resume();
     for (var i = 0; i < 6; i++) {
       this.playToneAt(200 + Math.random() * 400, 0.05, 'square', 0.3, i * 0.04);
@@ -1337,6 +1354,12 @@ var DiceManager = (function() {
     totalBg: null,
     totalContainer: null,
 
+    // Pre-generate dot textures during preloader (avoid stall in BoardScene)
+    preload: function(scene) {
+      buildDotPositions();
+      buildDotTextures(scene);
+    },
+
     create: function(scene, x, y) {
       this.scene = scene;
       buildDotPositions();
@@ -1579,6 +1602,13 @@ var PreloaderScene = new Phaser.Class({
     var h = GAME_HEIGHT;
     var self = this;
 
+    // ── Dismiss CSS loading screen ──────────────────────────────
+    var ls = document.getElementById('loading-screen');
+    if (ls) {
+      ls.classList.add('fade-out');
+      setTimeout(function() { if (ls.parentNode) ls.parentNode.removeChild(ls); }, 500);
+    }
+
     this.cameras.main.setBackgroundColor(0x060E1A);
 
     // Single graphics object for all visuals
@@ -1606,13 +1636,70 @@ var PreloaderScene = new Phaser.Class({
       strokeThickness: 4,
     }).setOrigin(0.5);
 
-    // Instant transition — just 1 frame to let GPU init
-    self.time.delayedCall(100, function() {
+    // ── Pre-generate all tile textures used by later scenes ────
+    // This avoids stalls when those scenes first create()
+    this.preGenerateTextures();
+
+    // Give GPU 250ms to flush texture uploads before transitioning
+    self.time.delayedCall(250, function() {
       self.cameras.main.fadeOut(150, 6, 14, 26);
       self.time.delayedCall(150, function() {
         self.scene.start('MenuScene');
       });
     });
+  },
+
+  preGenerateTextures: function() {
+    var size = 160;
+    var cx = size / 2;
+    var cy = size / 2;
+    var PI2 = Math.PI * 2;
+
+    // Board pattern tile (cross pattern for BoardScene)
+    if (!this.textures.exists('_boardPatternTile')) {
+      var r = size * 0.25;
+      var tg1 = this.add.graphics();
+      tg1.lineStyle(1, 0xC8A951, 1);
+      tg1.lineBetween(cx - r, cy, cx + r, cy);
+      tg1.lineBetween(cx, cy - r, cx, cy + r);
+      tg1.lineBetween(cx - r * 0.7, cy - r * 0.7, cx + r * 0.7, cy + r * 0.7);
+      tg1.lineBetween(cx + r * 0.7, cy - r * 0.7, cx - r * 0.7, cy + r * 0.7);
+      tg1.generateTexture('_boardPatternTile', size, size);
+      tg1.destroy();
+    }
+
+    // Setup scene pattern tile (8-pointed star)
+    if (!this.textures.exists('_setupPatternTile')) {
+      var r2 = size * 0.35;
+      var tg2 = this.add.graphics();
+      tg2.lineStyle(1, 0xC8A951, 1);
+      for (var i = 0; i < 8; i++) {
+        var a1 = (i / 8) * PI2;
+        var a2 = ((i + 3) / 8) * PI2;
+        tg2.lineBetween(cx + Math.cos(a1) * r2, cy + Math.sin(a1) * r2,
+                         cx + Math.cos(a2) * r2, cy + Math.sin(a2) * r2);
+      }
+      tg2.generateTexture('_setupPatternTile', size, size);
+      tg2.destroy();
+    }
+
+    // GameOver pattern tile (smaller 8-pointed star)
+    if (!this.textures.exists('_goPatternTile')) {
+      var r3 = size * 0.28;
+      var tg3 = this.add.graphics();
+      tg3.lineStyle(1, 0xC8A951, 1);
+      for (var j = 0; j < 8; j++) {
+        var a1b = (j / 8) * PI2;
+        var a2b = ((j + 3) / 8) * PI2;
+        tg3.lineBetween(cx + Math.cos(a1b) * r3, cy + Math.sin(a1b) * r3,
+                         cx + Math.cos(a2b) * r3, cy + Math.sin(a2b) * r3);
+      }
+      tg3.generateTexture('_goPatternTile', size, size);
+      tg3.destroy();
+    }
+
+    // Pre-generate dice dot textures (avoids stall on first dice roll)
+    DiceManager.preload(this);
   },
 
   shutdown: function() {
@@ -1887,53 +1974,7 @@ var MenuScene = new Phaser.Class({
       });
     }
 
-    // 3 gold dust particles (down from 8)
-    for (var pi = 0; pi < 3; pi++) {
-      var particle = this.add.graphics();
-      particle.setDepth(7);
-      particle.fillStyle(0xC8A951, 1);
-      particle.fillCircle(0, 0, 1 + Math.random() * 2);
-      particle.setPosition(Math.random() * w, h + 20);
-      particle.setAlpha(0);
-      this.createDustTween(particle, w, h, pi);
-    }
-  },
-
-  createDustTween: function(particle, w, h, index) {
-    var self = this;
-    var startX = Math.random() * w;
-    var startY = h + 20;
-    var endY = h * 0.3 + Math.random() * (h * 0.4);
-    var driftX = (Math.random() - 0.5) * 100;
-    var riseDuration = 10000 + Math.random() * 6000;
-    var peakAlpha = 0.2 + Math.random() * 0.2;
-
-    particle.setPosition(startX, startY);
-    particle.setAlpha(0);
-
-    self.time.delayedCall(index * 800, function() {
-      self.tweens.add({
-        targets: particle,
-        y: endY,
-        x: startX + driftX,
-        alpha: { from: 0, to: peakAlpha },
-        duration: riseDuration * 0.3,
-        ease: 'Sine.easeOut',
-      });
-      self.tweens.add({
-        targets: particle,
-        y: endY - 80,
-        alpha: 0,
-        delay: riseDuration * 0.3,
-        duration: riseDuration * 0.7,
-        ease: 'Sine.easeIn',
-        onComplete: function() {
-          self.time.delayedCall(200, function() {
-            self.createDustTween(particle, w, h, 0);
-          });
-        }
-      });
-    });
+    // Dust particles removed — saves continuous tween overhead on Tizen TV
   },
 
   // ================================================================
@@ -2819,6 +2860,10 @@ var BoardScene = new Phaser.Class({
     // Draw center area
     this.drawBoardCenter();
 
+    // ── Bake static board into a single RenderTexture ─────────
+    // This collapses ~200 board objects into 1 draw call per frame
+    this.bakeStaticBoard();
+
     // Create player tokens
     this.tokenSprites = [];
     this.createTokenSprites();
@@ -2908,19 +2953,21 @@ var BoardScene = new Phaser.Class({
   // Premium Board Drawing
   // -------------------------------------------------------
   drawBackgroundPattern: function() {
-    // Render single tile as texture, then use tileSprite (minimal draw calls)
-    var size = 160;
-    var r = size * 0.25;
-    var tileG = this.add.graphics();
-    tileG.lineStyle(1, 0xC8A951, 1);
-    var cx = size / 2;
-    var cy = size / 2;
-    tileG.lineBetween(cx - r, cy, cx + r, cy);
-    tileG.lineBetween(cx, cy - r, cx, cy + r);
-    tileG.lineBetween(cx - r * 0.7, cy - r * 0.7, cx + r * 0.7, cy + r * 0.7);
-    tileG.lineBetween(cx + r * 0.7, cy - r * 0.7, cx - r * 0.7, cy + r * 0.7);
-    tileG.generateTexture('_boardPatternTile', size, size);
-    tileG.destroy();
+    // Texture already pre-generated in PreloaderScene; skip if exists
+    if (!this.textures.exists('_boardPatternTile')) {
+      var size = 160;
+      var r = size * 0.25;
+      var tileG = this.add.graphics();
+      tileG.lineStyle(1, 0xC8A951, 1);
+      var cx = size / 2;
+      var cy = size / 2;
+      tileG.lineBetween(cx - r, cy, cx + r, cy);
+      tileG.lineBetween(cx, cy - r, cx, cy + r);
+      tileG.lineBetween(cx - r * 0.7, cy - r * 0.7, cx + r * 0.7, cy + r * 0.7);
+      tileG.lineBetween(cx + r * 0.7, cy - r * 0.7, cx - r * 0.7, cy + r * 0.7);
+      tileG.generateTexture('_boardPatternTile', size, size);
+      tileG.destroy();
+    }
 
     var tile = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, '_boardPatternTile');
     tile.setOrigin(0, 0);
@@ -2969,16 +3016,16 @@ var BoardScene = new Phaser.Class({
     }
 
     // Animated gold border shimmer - pre-drawn, alpha tween only (no clear())
-    var shimmer = this.add.graphics();
-    shimmer.lineStyle(2, 0xFFD700, 1);
-    shimmer.strokeRoundedRect(bx - 1, by - 1, bs + 2, bs + 2, 9);
-    shimmer.lineStyle(1, 0xC8A951, 0.4);
-    shimmer.strokeRoundedRect(bx - 3, by - 3, bs + 6, bs + 6, 11);
-    this.boardContainer.add(shimmer);
+    this._boardShimmer = this.add.graphics();
+    this._boardShimmer.lineStyle(2, 0xFFD700, 1);
+    this._boardShimmer.strokeRoundedRect(bx - 1, by - 1, bs + 2, bs + 2, 9);
+    this._boardShimmer.lineStyle(1, 0xC8A951, 0.4);
+    this._boardShimmer.strokeRoundedRect(bx - 3, by - 3, bs + 6, bs + 6, 11);
+    this.boardContainer.add(this._boardShimmer);
     this.tweens.add({
-      targets: shimmer,
-      alpha: { from: 0.2, to: 0.7 },
-      duration: 2500,
+      targets: this._boardShimmer,
+      alpha: { from: 0.2, to: 0.6 },
+      duration: 3500,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut'
@@ -3263,6 +3310,37 @@ var BoardScene = new Phaser.Class({
     this.boardContainer.add(this.add.text(cx + 65, cy + 20, 'CC', {
       fontFamily: '"Fredoka One", sans-serif', fontSize: '14px', color: COLORS.warmSand,
     }).setOrigin(0.5));
+  },
+
+  // -------------------------------------------------------
+  // Bake static board into single RenderTexture
+  // Reduces per-frame draw calls from ~200 to ~10
+  // -------------------------------------------------------
+  bakeStaticBoard: function() {
+    // Remove shimmer (it's animated, must stay separate)
+    if (this._boardShimmer) {
+      this.boardContainer.remove(this._boardShimmer);
+    }
+
+    // Create a RenderTexture the size of the full screen
+    var rt = this.add.renderTexture(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    // Draw all static board children (graphics + text) onto it
+    var children = this.boardContainer.getAll();
+    for (var i = 0; i < children.length; i++) {
+      rt.draw(children[i]);
+    }
+
+    // Destroy all the individual objects — they're now in the texture
+    this.boardContainer.removeAll(true);
+
+    // Add the single baked texture
+    this.boardContainer.add(rt);
+
+    // Re-add shimmer on top (animated, needs to stay separate)
+    if (this._boardShimmer) {
+      this.boardContainer.add(this._boardShimmer);
+    }
   },
 
   // -------------------------------------------------------
@@ -4739,9 +4817,10 @@ var GameOverScene = new Phaser.Class({
     this.fireworkParticles = [];
     this.confettiPieces = [];
     this.ambientParticles = [];
-    this.maxFireworkParticles = 32;
-    this.maxConfetti = 10;
-    this.maxAmbient = 6;
+    this.maxFireworkParticles = 16;  // reduced from 32 for Tizen TV
+    this.maxConfetti = 6;             // reduced from 10
+    this.maxAmbient = 3;              // reduced from 6
+    this._frameCounter = 0;           // for update throttling
   },
 
   create: function() {
@@ -4768,7 +4847,7 @@ var GameOverScene = new Phaser.Class({
     this.createFireworkPool();
     this.launchFirework();
     this.time.addEvent({
-      delay: 1500,
+      delay: 2500,  // slower frequency for Tizen TV (was 1500)
       callback: function() { self.launchFirework(); },
       loop: true
     });
@@ -5040,7 +5119,11 @@ var GameOverScene = new Phaser.Class({
   // Update loop — animate confetti, ambient particles
   // ============================================================
   update: function(time, delta) {
-    var dt = delta / 1000;
+    // Throttle: process particles every other frame to save CPU on Tizen TV
+    this._frameCounter++;
+    if (this._frameCounter % 2 !== 0) return;
+
+    var dt = (delta * 2) / 1000; // compensate for skipped frame
     var i, p;
 
     // Confetti animation
@@ -5200,7 +5283,7 @@ var GameOverScene = new Phaser.Class({
     var by = 80 + Math.random() * (GAME_HEIGHT * 0.35);
     var colors = [0xE74C3C, 0x3498DB, 0xF39C12, 0x9B59B6, 0xE8B931, 0x27AE60, 0xFF69B4, 0xFFD700];
     var color = colors[Math.floor(Math.random() * colors.length)];
-    var particleCount = 8;
+    var particleCount = 6;  // reduced from 8 for Tizen TV
 
     for (var i = 0; i < particleCount; i++) {
       var p = this.getFireworkParticle();
