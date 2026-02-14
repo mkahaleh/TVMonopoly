@@ -414,159 +414,73 @@ var BoardScene = new Phaser.Class({
   drawBoardCenter: function() {
     var cx = this.boardX + this.boardSize / 2;
     var cy = this.boardY + this.boardSize / 2;
-    var centerContainer = this.add.container(0, 0);
-    this.boardContainer.add(centerContainer);
 
-    // Decorative border frame around center
-    var frame = this.add.graphics();
-    frame.lineStyle(1, 0xC8A951, 0.2);
-    frame.strokeRect(cx - 140, cy - 100, 280, 220);
-    frame.lineStyle(1, 0xC8A951, 0.1);
-    frame.strokeRect(cx - 143, cy - 103, 286, 226);
-    // Corner diamond ornaments
-    var corners = [
-      { x: cx - 140, y: cy - 100 },
-      { x: cx + 140, y: cy - 100 },
-      { x: cx - 140, y: cy + 120 },
-      { x: cx + 140, y: cy + 120 }
-    ];
-    for (var ci = 0; ci < corners.length; ci++) {
-      frame.fillStyle(0xC8A951, 0.25);
-      frame.fillCircle(corners[ci].x, corners[ci].y, 3);
-    }
-    centerContainer.add(frame);
+    // Single graphics object for ALL center decorations
+    var g = this.add.graphics();
 
-    // Game title - Arabic
-    var title = this.add.text(cx, cy - 65, 'أبراج الرياض', {
+    // Frame
+    g.lineStyle(1, 0xC8A951, 0.2);
+    g.strokeRect(cx - 140, cy - 100, 280, 220);
+
+    // Gold line
+    g.lineStyle(1, 0xC8A951, 0.5);
+    g.lineBetween(cx - 90, cy - 12, cx + 90, cy - 12);
+    g.fillStyle(0xC8A951, 0.5);
+    g.fillCircle(cx, cy - 12, 3);
+
+    // Card deck areas
+    g.fillStyle(0x2A1A44, 0.6);
+    g.fillRoundedRect(cx - 105, cy + 2, 80, 45, 5);
+    g.lineStyle(1, 0xE8B931, 0.4);
+    g.strokeRoundedRect(cx - 105, cy + 2, 80, 45, 5);
+    g.fillStyle(0x1A3744, 0.6);
+    g.fillRoundedRect(cx + 25, cy + 2, 80, 45, 5);
+    g.lineStyle(1, 0x87CEEB, 0.4);
+    g.strokeRoundedRect(cx + 25, cy + 2, 80, 45, 5);
+
+    // Mini skyline (simplified — single graphics, no separate object)
+    var skyBase = cy + 105;
+    g.fillStyle(0x1A2744, 0.4);
+    g.fillRect(cx - 120, skyBase, 240, 3);
+    g.fillStyle(0x1A2744, 0.7);
+    g.fillRect(cx - 6, skyBase - 55, 12, 55);
+    g.beginPath();
+    g.moveTo(cx + 28, skyBase);
+    g.lineTo(cx + 31, skyBase - 48);
+    g.lineTo(cx + 35, skyBase - 48);
+    g.lineTo(cx + 38, skyBase);
+    g.closePath();
+    g.fillPath();
+    g.fillStyle(0xC8A951, 0.3);
+    g.fillCircle(cx + 33, skyBase - 40, 3);
+
+    this.boardContainer.add(g);
+
+    // Title text (only 2 text objects instead of 6)
+    var title = this.add.text(cx, cy - 55, 'أبراج الرياض', {
       fontFamily: 'Tajawal, sans-serif',
-      fontSize: '30px',
+      fontSize: '28px',
       fontStyle: '800',
       color: COLORS.desertGold,
       stroke: '#060E1A',
       strokeThickness: 3,
     }).setOrigin(0.5);
-    centerContainer.add(title);
+    this.boardContainer.add(title);
 
-    // Pulsing glow on title
-    this.tweens.add({
-      targets: title,
-      alpha: { from: 0.8, to: 1 },
-      duration: 2000,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
-    // English subtitle
-    var subtitle = this.add.text(cx, cy - 32, 'RIYADH TOWERS', {
+    var subtitle = this.add.text(cx, cy - 25, 'RIYADH TOWERS', {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '14px',
+      fontSize: '13px',
       color: COLORS.textSecondary,
     }).setOrigin(0.5);
-    centerContainer.add(subtitle);
+    this.boardContainer.add(subtitle);
 
-    // Decorative gold line with diamonds
-    var dline = this.add.graphics();
-    dline.lineStyle(1, 0xC8A951, 0.5);
-    dline.lineBetween(cx - 90, cy - 12, cx + 90, cy - 12);
-    dline.fillStyle(0xC8A951, 0.5);
-    dline.fillCircle(cx - 90, cy - 12, 2);
-    dline.fillCircle(cx, cy - 12, 3);
-    dline.fillCircle(cx + 90, cy - 12, 2);
-    centerContainer.add(dline);
-
-    // Card deck areas
-    var chanceCard = this.add.graphics();
-    chanceCard.fillStyle(0x2A1A44, 0.6);
-    chanceCard.fillRoundedRect(cx - 105, cy + 2, 80, 45, 5);
-    chanceCard.lineStyle(1, 0xE8B931, 0.4);
-    chanceCard.strokeRoundedRect(cx - 105, cy + 2, 80, 45, 5);
-    centerContainer.add(chanceCard);
-
-    var chanceLabel = this.add.text(cx - 65, cy + 14, '?', {
-      fontFamily: '"Fredoka One", sans-serif', fontSize: '16px', color: COLORS.accent,
-    }).setOrigin(0.5);
-    var chanceSub = this.add.text(cx - 65, cy + 34, 'Chance', {
-      fontFamily: '"Fredoka One", sans-serif', fontSize: '8px', color: COLORS.accent, alpha: 0.6,
-    }).setOrigin(0.5);
-    centerContainer.add([chanceLabel, chanceSub]);
-
-    var commCard = this.add.graphics();
-    commCard.fillStyle(0x1A3744, 0.6);
-    commCard.fillRoundedRect(cx + 25, cy + 2, 80, 45, 5);
-    commCard.lineStyle(1, 0x87CEEB, 0.4);
-    commCard.strokeRoundedRect(cx + 25, cy + 2, 80, 45, 5);
-    centerContainer.add(commCard);
-
-    var commLabel = this.add.text(cx + 65, cy + 14, 'CC', {
-      fontFamily: '"Fredoka One", sans-serif', fontSize: '12px', color: COLORS.warmSand,
-    }).setOrigin(0.5);
-    var commSub = this.add.text(cx + 65, cy + 34, 'Community', {
-      fontFamily: '"Fredoka One", sans-serif', fontSize: '8px', color: COLORS.warmSand, alpha: 0.6,
-    }).setOrigin(0.5);
-    centerContainer.add([commLabel, commSub]);
-
-    // Enhanced skyline silhouette
-    var skyline = this.add.graphics();
-    var skyBase = cy + 105;
-
-    // Ground line
-    skyline.fillStyle(0x1A2744, 0.4);
-    skyline.fillRect(cx - 120, skyBase, 240, 3);
-
-    // Background buildings
-    skyline.fillStyle(0x0F1E38, 0.6);
-    var bgBuildings = [
-      { x: -100, w: 14, h: 25 }, { x: -75, w: 12, h: 35 },
-      { x: -55, w: 10, h: 20 }, { x: -35, w: 16, h: 30 },
-      { x: 40, w: 12, h: 28 }, { x: 60, w: 14, h: 22 },
-      { x: 80, w: 10, h: 32 }, { x: 100, w: 12, h: 18 }
-    ];
-    for (var bi = 0; bi < bgBuildings.length; bi++) {
-      var bb = bgBuildings[bi];
-      skyline.fillRect(cx + bb.x - bb.w / 2, skyBase - bb.h, bb.w, bb.h);
-    }
-
-    // Kingdom Tower (arch shape)
-    skyline.fillStyle(0x1A2744, 0.7);
-    skyline.fillRect(cx - 6, skyBase - 55, 12, 55);
-    // Arch cutout effect (lighter fill)
-    skyline.fillStyle(0x0B1A2D, 0.8);
-    skyline.fillCircle(cx, skyBase - 50, 4);
-
-    // Al Faisaliah (tapering tower)
-    skyline.fillStyle(0x1A2744, 0.7);
-    skyline.beginPath();
-    skyline.moveTo(cx + 28, skyBase);
-    skyline.lineTo(cx + 31, skyBase - 48);
-    skyline.lineTo(cx + 35, skyBase - 48);
-    skyline.lineTo(cx + 38, skyBase);
-    skyline.closePath();
-    skyline.fillPath();
-    // Golden sphere
-    skyline.fillStyle(0xC8A951, 0.3);
-    skyline.fillCircle(cx + 33, skyBase - 40, 3);
-
-    // Mosque dome with minarets
-    skyline.fillStyle(0x1A2744, 0.6);
-    // Dome
-    skyline.beginPath();
-    skyline.moveTo(cx - 30, skyBase - 15);
-    skyline.lineTo(cx - 28, skyBase - 28);
-    skyline.lineTo(cx - 22, skyBase - 33);
-    skyline.lineTo(cx - 16, skyBase - 28);
-    skyline.lineTo(cx - 14, skyBase - 15);
-    skyline.closePath();
-    skyline.fillPath();
-    // Minarets
-    skyline.fillRect(cx - 34, skyBase - 35, 3, 35);
-    skyline.fillRect(cx - 13, skyBase - 35, 3, 35);
-    // Crescent finials
-    skyline.fillStyle(0xC8A951, 0.2);
-    skyline.fillCircle(cx - 33, skyBase - 37, 2);
-    skyline.fillCircle(cx - 11, skyBase - 37, 2);
-
-    centerContainer.add(skyline);
+    // Card labels (2 instead of 4)
+    this.boardContainer.add(this.add.text(cx - 65, cy + 20, '?', {
+      fontFamily: '"Fredoka One", sans-serif', fontSize: '18px', color: COLORS.accent,
+    }).setOrigin(0.5));
+    this.boardContainer.add(this.add.text(cx + 65, cy + 20, 'CC', {
+      fontFamily: '"Fredoka One", sans-serif', fontSize: '14px', color: COLORS.warmSand,
+    }).setOrigin(0.5));
   },
 
   // -------------------------------------------------------
@@ -791,91 +705,61 @@ var BoardScene = new Phaser.Class({
     var container = this.add.container(x, y);
     this.hudContainer.add(container);
 
-    // Panel shadow
-    var panelShadow = this.add.graphics();
-    panelShadow.fillStyle(0x000000, 0.2);
-    panelShadow.fillRoundedRect(3, 3, w, h, 10);
-    container.add(panelShadow);
-
-    // Panel background - glass-morphism layers
+    // Single graphics object for shadow + bg + accent + border (was 4 separate)
     var bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.2);
+    bg.fillRoundedRect(3, 3, w, h, 10);
     bg.fillStyle(0x0C1729, 0.95);
     bg.fillRoundedRect(0, 0, w, h, 10);
     bg.fillStyle(0x162340, 0.3);
     bg.fillRoundedRect(0, 0, w, h / 2, { tl: 10, tr: 10, bl: 0, br: 0 });
+    bg.fillStyle(player.color, 0.9);
+    bg.fillRoundedRect(0, 4, 4, h - 8, 2);
+    bg.lineStyle(1, player.color, 0.3);
+    bg.strokeRoundedRect(0, 0, w, h, 10);
     container.add(bg);
-
-    // Player color accent bar on left edge
-    var accentBar = this.add.graphics();
-    accentBar.fillStyle(player.color, 0.9);
-    accentBar.fillRoundedRect(0, 4, 4, h - 8, 2);
-    container.add(accentBar);
-
-    // Border (player color)
-    var border = this.add.graphics();
-    border.lineStyle(1, player.color, 0.3);
-    border.strokeRoundedRect(0, 0, w, h, 10);
-    container.add(border);
 
     // Active glow (hidden by default)
     var glow = this.add.graphics();
     glow.lineStyle(2, player.color, 0.8);
     glow.strokeRoundedRect(-2, -2, w + 4, h + 4, 12);
-    glow.fillStyle(player.color, 0.04);
-    glow.fillRoundedRect(-2, -2, w + 4, h + 4, 12);
     glow.setVisible(false);
     container.add(glow);
 
-    // Token emoji + name
-    var emojiText = this.add.text(15, 15, token ? token.emoji : '?', {
-      fontSize: '28px',
-    });
-    container.add(emojiText);
-
-    var nameText = this.add.text(50, 12, player.name, {
+    // Combined emoji + name on one line
+    var nameText = this.add.text(15, 15, (token ? token.emoji : '?') + ' ' + player.name, {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '20px',
       color: player.colorStr,
     });
     container.add(nameText);
 
-    // Money with icon
-    var moneyText = this.add.text(50, 38, 'SAR ' + player.money, {
+    // Money
+    var moneyText = this.add.text(15, 42, 'SAR ' + player.money, {
       fontFamily: '"Fredoka One", sans-serif',
       fontSize: '18px',
       color: COLORS.desertGold,
     });
     container.add(moneyText);
 
-    // Properties count
-    var propsText = this.add.text(15, 68, '0 properties', {
+    // Combined props + worth on one line
+    var propsText = this.add.text(15, 70, '0 props | Net: 1500 SAR', {
       fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '14px',
+      fontSize: '13px',
       color: COLORS.textSecondary,
     });
     container.add(propsText);
 
-    // Net worth
-    var worthText = this.add.text(15, 90, 'Net: 1500 SAR', {
-      fontFamily: '"Fredoka One", sans-serif',
-      fontSize: '13px',
-      color: COLORS.textSecondary,
-      alpha: 0.7,
-    });
-    container.add(worthText);
-
     // Property color dots
-    var dotsContainer = this.add.container(w - 15, 70);
+    var dotsContainer = this.add.container(w - 15, 95);
     container.add(dotsContainer);
 
     return {
       container: container,
       bg: bg,
-      border: border,
       glow: glow,
       moneyText: moneyText,
       propsText: propsText,
-      worthText: worthText,
       dotsContainer: dotsContainer,
       playerIdx: playerIdx,
     };
@@ -895,15 +779,11 @@ var BoardScene = new Phaser.Class({
       }
 
       var propsCount = player.properties.length;
-      if (panel._lastPropsCount !== propsCount) {
-        panel._lastPropsCount = propsCount;
-        panel.propsText.setText(propsCount + ' properties');
-      }
-
       var worth = GameState.getPlayerNetWorth(player);
-      if (panel._lastWorth !== worth) {
-        panel._lastWorth = worth;
-        panel.worthText.setText('Net: ' + worth + ' SAR');
+      var infoStr = propsCount + ' props | Net: ' + worth + ' SAR';
+      if (panel._lastInfoStr !== infoStr) {
+        panel._lastInfoStr = infoStr;
+        panel.propsText.setText(infoStr);
       }
 
       // Active player glow
@@ -918,10 +798,9 @@ var BoardScene = new Phaser.Class({
         panel.container.setAlpha(0.3);
       }
 
-      // Only rebuild color dots when property list changes
-      var propsKey = player.properties.join(',');
-      if (panel._lastPropsKey !== propsKey) {
-        panel._lastPropsKey = propsKey;
+      // Only rebuild color dots when property count changes
+      if (panel._lastPropsCount !== propsCount) {
+        panel._lastPropsCount = propsCount;
         panel.dotsContainer.removeAll(true);
         var dotX = 0;
         var shownColors = {};
@@ -933,8 +812,6 @@ var BoardScene = new Phaser.Class({
             var dot = this.add.graphics();
             dot.fillStyle(space.colorInt, 1);
             dot.fillCircle(dotX, 0, 5);
-            dot.lineStyle(1, 0xFFFFFF, 0.3);
-            dot.strokeCircle(dotX, 0, 5);
             panel.dotsContainer.add(dot);
             dotX -= 14;
           }
